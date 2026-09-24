@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>TutorSlot</h1>
+<p><a th:href="@{/slots}">View available slots</a></p>
+
+<div th:each="provider : ${providers}">
+    <h2 th:text="${provider.fullName}">Tutor Name</h2>
+    <p th:if="${provider.title}" th:text="${provider.title}">Title</p>
+    <p th:if="${provider.bio}" th:text="${provider.bio}">Bio</p>
+    <ul>
+        <li th:each="subject : ${provider.subjects}">
+            <strong th:text="${subject.name}">Subject</strong>
+            (<span th:text="${subject.durationMinutes}">60</span> min)
+            <span th:if="${subject.description}" th:text="' - ' + ${subject.description}"></span>
+        </li>
+    </ul>
+</div>
+</body>
+</html>

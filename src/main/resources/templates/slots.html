@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Available Slots - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+<h1>Available Slots</h1>
+<p><a th:href="@{/}">Back to home</a></p>
+
+<table border="1" cellpadding="6">
+    <thead>
+    <tr>
+        <th>Tutor</th>
+        <th>Subject</th>
+        <th>Start</th>
+        <th>End</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="slot : ${slots}">
+        <td th:text="${slot.tutorName}">Tutor</td>
+        <td th:text="${slot.subjectName}">Subject</td>
+        <td th:text="${#temporals.format(slot.startTime, 'MMM d, h:mm a')}">Start</td>
+        <td th:text="${#temporals.format(slot.endTime, 'h:mm a')}">End</td>
+    </tr>
+    </tbody>
+</table>
+<p th:if="${slots.isEmpty()}">No available slots right now.</p>
+</body>
+</html>
