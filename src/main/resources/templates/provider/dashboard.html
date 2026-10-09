@@ -60,11 +60,14 @@
                 th:value="${subject.serviceId}"
                 th:text="${subject.name}"></option>
     </select>
-    <p class="error" th:if="${#fields.hasErrors('serviceId')}" th:errors="*{serviceId}"></p>
+    <!-- A fixed message, never th:errors' raw text -- a type-conversion failure (not just our
+         own @NotNull/@Future messages) also lands here, and Spring's default message for that
+         names internal Java types. Safe and generic beats exact but leaky. -->
+    <p class="error" th:if="${#fields.hasErrors('serviceId')}">Pick a valid subject.</p>
 
     <label for="startDateTime">Start</label>
     <input type="datetime-local" id="startDateTime" th:field="*{startDateTime}">
-    <p class="error" th:if="${#fields.hasErrors('startDateTime')}" th:errors="*{startDateTime}"></p>
+    <p class="error" th:if="${#fields.hasErrors('startDateTime')}">Enter a valid future date and time.</p>
 
     <button type="submit">Open slot</button>
 </form>
