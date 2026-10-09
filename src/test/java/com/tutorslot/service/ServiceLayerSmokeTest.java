@@ -2,6 +2,7 @@ package com.tutorslot.service;
 
 import com.tutorslot.dto.ProviderSummaryDto;
 import com.tutorslot.dto.SlotDto;
+import com.tutorslot.dto.SlotsPageDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -39,14 +40,49 @@ class ServiceLayerSmokeTest {
     }
 
     @Test
-    void availableSlotsComeBackWithTutorAndSubjectJoinedIn() {
-        List<SlotDto> slots = availabilitySlotService.getAvailableSlots();
+    void firstPageHasTenOfSeventeenAvailableSlots() {
+        SlotsPageDto page = availabilitySlotService.getAvailableSlotsPage(null, null, null, 1);
 
-        assertThat(slots).hasSize(17);
-        assertThat(slots).allSatisfy(slot -> {
+        assertThat(page.currentPage()).isEqualTo(1);
+        assertThat(page.totalPages()).isEqualTo(2); // 17 slots, page size 10
+        assertThat(page.slots()).hasSize(10);
+        assertThat(page.slots()).allSatisfy(slot -> {
+            assertThat(slot.slotId()).isNotNull();
             assertThat(slot.tutorName()).isNotBlank();
             assertThat(slot.subjectName()).isNotBlank();
         });
-        assertThat(slots).isSortedAccordingTo(Comparator.comparing(SlotDto::startTime));
+        assertThat(page.slots()).isSortedAccordingTo(Comparator.comparing(SlotDto::startTime));
+    }
+
+    @Test
+    void secondPageHasTheRemainingSevenSlots() {
+        SlotsPageDto page = availabilitySlotService.getAvailableSlotsPage(null, null, null, 2);
+
+        assertThat(page.slots()).hasSize(7);
+    }
+
+    @Test
+    void pageBelowOneFallsBackToPageOne() {
+        SlotsPageDto page = availabilitySlotService.getAvailableSlotsPage(null, null, null, 0);
+
+        assertThat(page.currentPage()).isEqualTo(1);
+        assertThat(page.slots()).hasSize(10);
+    }
+
+    @Test
+    void pagePastTheEndIsEmptyNotAnError() {
+        SlotsPageDto page = availabilitySlotService.getAvailableSlotsPage(null, null, null, 99);
+
+        assertThat(page.slots()).isEmpty();
+    }
+
+    @Test
+    void dropdownOptionsCoverEveryProviderAndSubject() {
+        SlotsPageDto page = availabilitySlotService.getAvailableSlotsPage(null, null, null, 1);
+
+        assertThat(page.tutors()).hasSize(4);
+        assertThat(page.subjects()).hasSize(7);
+        assertThat(page.subjects()).extracting("label")
+                .contains("Calculus I (Alice Nguyen)");
     }
 }

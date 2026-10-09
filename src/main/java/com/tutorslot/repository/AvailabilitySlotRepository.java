@@ -1,10 +1,12 @@
 package com.tutorslot.repository;
 
 import com.tutorslot.model.AvailabilitySlot;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -18,22 +20,56 @@ public class AvailabilitySlotRepository {
             rs.getTimestamp("end_time").toLocalDateTime()
     );
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public AvailabilitySlotRepository(JdbcTemplate jdbcTemplate) {
+    public AvailabilitySlotRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    // A slot is available when it's in the future and has no active (BOOKED) appointment.
-    public List<AvailabilitySlot> findAvailable() {
-        return jdbcTemplate.query("""
-                SELECT slot_id, provider_id, service_id, start_time, end_time
-                FROM availability_slots s
-                WHERE start_time > NOW()
-                  AND NOT EXISTS (
-                    SELECT 1 FROM appointments a WHERE a.slot_id = s.slot_id AND a.status = 'BOOKED'
-                  )
-                ORDER BY start_time
-                """, SLOT_ROW_MAPPER);
+    public List<AvailabilitySlot> findAvailablePage(Long providerId, Long serviceId, LocalDate date,
+                                                      int limit, int offset) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String where = availableWhereClause(providerId, serviceId, date, params);
+        params.addValue("limit", limit);
+        params.addValue("offset", offset);
+
+        String sql = "SELECT slot_id, provider_id, service_id, start_time, end_time "
+                + "FROM availability_slots s " + where
+                + " ORDER BY start_time LIMIT :limit OFFSET :offset";
+        return jdbcTemplate.query(sql, params, SLOT_ROW_MAPPER);
+    }
+
+    public int countAvailable(Long providerId, Long serviceId, LocalDate date) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String where = availableWhereClause(providerId, serviceId, date, params);
+
+        String sql = "SELECT count(*) FROM availability_slots s " + where;
+        Integer count = jdbcTemplate.queryForObject(sql, params, Integer.class);
+        return count != null ? count : 0;
+    }
+
+    // Shared "available" condition (future, no active BOOKED appointment) plus whichever of the
+    // three optional filters were given. Filter values always go in as named parameters -- only
+    // the fixed SQL fragments themselves are appended based on which filters are present.
+    private String availableWhereClause(Long providerId, Long serviceId, LocalDate date,
+                                          MapSqlParameterSource params) {
+        StringBuilder where = new StringBuilder(
+                "WHERE start_time > NOW() AND NOT EXISTS ("
+                        + "SELECT 1 FROM appointments a WHERE a.slot_id = s.slot_id AND a.status = 'BOOKED')");
+
+        if (providerId != null) {
+            where.append(" AND provider_id = :providerId");
+            params.addValue("providerId", providerId);
+        }
+        if (serviceId != null) {
+            where.append(" AND service_id = :serviceId");
+            params.addValue("serviceId", serviceId);
+        }
+        if (date != null) {
+            where.append(" AND start_time >= :dayStart AND start_time < :dayEnd");
+            params.addValue("dayStart", date.atStartOfDay());
+            params.addValue("dayEnd", date.plusDays(1).atStartOfDay());
+        }
+        return where.toString();
     }
 }

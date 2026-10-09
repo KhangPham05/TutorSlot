@@ -14,12 +14,40 @@
             border-collapse: collapse;
             width: 100%;
         }
+        form.filters label { margin-right: 4px; }
+        form.filters > * { margin-right: 16px; }
+        .pagination { margin-top: 16px; }
     </style>
 </head>
 <body>
 <div th:replace="~{fragments/navbar :: navbar}"></div>
 
 <h1>Available Slots</h1>
+
+<form class="filters" th:action="@{/slots}" method="get">
+    <label for="providerId">Tutor</label>
+    <select id="providerId" name="providerId">
+        <option value="">All tutors</option>
+        <option th:each="tutor : ${slotsPage.tutors}"
+                th:value="${tutor.providerId}"
+                th:text="${tutor.name}"
+                th:selected="${tutor.providerId == slotsPage.selectedProviderId}"></option>
+    </select>
+
+    <label for="serviceId">Subject</label>
+    <select id="serviceId" name="serviceId">
+        <option value="">All subjects</option>
+        <option th:each="subject : ${slotsPage.subjects}"
+                th:value="${subject.serviceId}"
+                th:text="${subject.label}"
+                th:selected="${subject.serviceId == slotsPage.selectedServiceId}"></option>
+    </select>
+
+    <label for="date">Date</label>
+    <input type="date" id="date" name="date" th:value="${slotsPage.selectedDate}">
+
+    <button type="submit">Filter</button>
+</form>
 
 <table border="1" cellpadding="6">
     <thead>
@@ -28,17 +56,27 @@
         <th>Subject</th>
         <th>Start</th>
         <th>End</th>
+        <th></th>
     </tr>
     </thead>
     <tbody>
-    <tr th:each="slot : ${slots}">
+    <tr th:each="slot : ${slotsPage.slots}">
         <td th:text="${slot.tutorName}">Tutor</td>
         <td th:text="${slot.subjectName}">Subject</td>
         <td th:text="${#temporals.format(slot.startTime, 'MMM d, h:mm a')}">Start</td>
         <td th:text="${#temporals.format(slot.endTime, 'h:mm a')}">End</td>
+        <td><a th:href="@{/customer/book(slotId=${slot.slotId})}">Book</a></td>
     </tr>
     </tbody>
 </table>
-<p th:if="${slots.isEmpty()}">No available slots right now.</p>
+<p th:if="${slotsPage.slots.isEmpty()}">No available slots match these filters.</p>
+
+<div class="pagination">
+    <a th:if="${slotsPage.currentPage > 1}"
+       th:href="@{/slots(providerId=${slotsPage.selectedProviderId}, serviceId=${slotsPage.selectedServiceId}, date=${slotsPage.selectedDate}, page=${slotsPage.currentPage - 1})}">Previous</a>
+    <span th:text="'Page ' + ${slotsPage.currentPage} + ' of ' + ${slotsPage.totalPages}"></span>
+    <a th:if="${slotsPage.currentPage < slotsPage.totalPages}"
+       th:href="@{/slots(providerId=${slotsPage.selectedProviderId}, serviceId=${slotsPage.selectedServiceId}, date=${slotsPage.selectedDate}, page=${slotsPage.currentPage + 1})}">Next</a>
+</div>
 </body>
 </html>
