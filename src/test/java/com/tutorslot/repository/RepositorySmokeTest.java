@@ -26,17 +26,18 @@ class RepositorySmokeTest {
 
     @Test
     void seedDataLoadsAsExpected() {
-        assertThat(userRepository.findAll()).hasSize(7);
-        assertThat(providerRepository.findAll()).hasSize(3);
-        assertThat(subjectRepository.findAll()).hasSize(6);
+        assertThat(userRepository.findAll()).hasSize(8);
+        assertThat(providerRepository.findAll()).hasSize(4);
+        assertThat(subjectRepository.findAll()).hasSize(7);
     }
 
     @Test
     void availableSlotsExcludeBookedOnesAndAreOrderedByStartTime() {
         List<AvailabilitySlot> available = availabilitySlotRepository.findAvailable();
 
-        // 18 seeded slots, 3 actively booked -> 15 available (the cancelled one stays available).
-        assertThat(available).hasSize(15);
+        // 21 seeded slots: 1 past (excluded), 3 of the remaining 20 actively booked ->
+        // 17 available (the cancelled one stays available).
+        assertThat(available).hasSize(17);
         assertThat(available).isSortedAccordingTo(java.util.Comparator.comparing(AvailabilitySlot::startTime));
     }
 }

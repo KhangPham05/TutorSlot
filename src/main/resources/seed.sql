@@ -8,6 +8,7 @@ INSERT INTO users (email, password_hash, full_name, role) VALUES
     ('alice.tutor@sjsu.edu',  '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Alice Nguyen',  'PROVIDER'),
     ('bob.tutor@sjsu.edu',    '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Bob Martinez',  'PROVIDER'),
     ('carla.tutor@sjsu.edu',  '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Carla Osei',    'PROVIDER'),
+    ('balaji.tutor@sjsu.edu', '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Balaji Venkatraman', 'PROVIDER'),
     ('dan.student@sjsu.edu',  '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Dan Kim',       'CUSTOMER'),
     ('erin.student@sjsu.edu', '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Erin Patel',    'CUSTOMER'),
     ('finn.student@sjsu.edu', '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Finn O''Brien', 'CUSTOMER'),
@@ -19,7 +20,9 @@ INSERT INTO providers (user_id, title, bio) VALUES
     ((SELECT user_id FROM users WHERE email = 'bob.tutor@sjsu.edu'),   'CS Tutor',
         'Teaching assistant for data structures and algorithms.'),
     ((SELECT user_id FROM users WHERE email = 'carla.tutor@sjsu.edu'), 'Physics Tutor',
-        'Physics grad student, tutors intro mechanics and E&M.');
+        'Physics grad student, tutors intro mechanics and E&M.'),
+    ((SELECT user_id FROM users WHERE email = 'balaji.tutor@sjsu.edu'), 'Database Tutor',
+        'Backend engineer, tutors relational database design and SQL.');
 
 -- 2-3 subjects per tutor
 INSERT INTO services (provider_id, name, description, duration_minutes) VALUES
@@ -34,7 +37,9 @@ INSERT INTO services (provider_id, name, description, duration_minutes) VALUES
     ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'carla.tutor@sjsu.edu'),
         'Physics I', 'Kinematics, Newton''s laws, and energy.', 60),
     ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'carla.tutor@sjsu.edu'),
-        'Physics II', 'Electricity and magnetism fundamentals.', 60);
+        'Physics II', 'Electricity and magnetism fundamentals.', 60),
+    ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'balaji.tutor@sjsu.edu'),
+        'Database Systems', 'Relational design, normalization, and SQL query tuning.', 60);
 
 -- ~18 slots spread over the next 7 days, 60-minute sessions during daytime hours (10am-4pm),
 -- plus one slot in the past (see below) for the M2 COMPLETED-status demo.
@@ -103,7 +108,14 @@ INSERT INTO availability_slots (provider_id, service_id, start_time, end_time) V
     -- past bookings as COMPLETED" logic has something to act on.
     ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'alice.tutor@sjsu.edu'),
         (SELECT service_id FROM services WHERE name = 'Calculus I'),
-        CURRENT_DATE - INTERVAL '2 day' + TIME '10:00', CURRENT_DATE - INTERVAL '2 day' + TIME '11:00');
+        CURRENT_DATE - INTERVAL '2 day' + TIME '10:00', CURRENT_DATE - INTERVAL '2 day' + TIME '11:00'),
+    -- Balaji: Database Systems
+    ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'balaji.tutor@sjsu.edu'),
+        (SELECT service_id FROM services WHERE name = 'Database Systems'),
+        CURRENT_DATE + INTERVAL '2 day' + TIME '14:00', CURRENT_DATE + INTERVAL '2 day' + TIME '15:00'),
+    ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'balaji.tutor@sjsu.edu'),
+        (SELECT service_id FROM services WHERE name = 'Database Systems'),
+        CURRENT_DATE + INTERVAL '5 day' + TIME '11:00', CURRENT_DATE + INTERVAL '5 day' + TIME '12:00');
 
 -- 3 BOOKED (future) + 1 CANCELLED appointment, so GET /slots visibly hides the booked ones.
 -- A 4th BOOKED appointment, on the past slot above, is added further down.

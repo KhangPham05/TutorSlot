@@ -24,7 +24,7 @@ class ServiceLayerSmokeTest {
     void providersComeBackWithTheirSubjectsGrouped() {
         List<ProviderSummaryDto> providers = providerService.getProvidersWithSubjects();
 
-        assertThat(providers).hasSize(3);
+        assertThat(providers).hasSize(4);
         assertThat(providers).allSatisfy(provider -> {
             assertThat(provider.fullName()).isNotBlank();
             assertThat(provider.subjects()).isNotEmpty();
@@ -42,7 +42,7 @@ class ServiceLayerSmokeTest {
     void availableSlotsComeBackWithTutorAndSubjectJoinedIn() {
         List<SlotDto> slots = availabilitySlotService.getAvailableSlots();
 
-        assertThat(slots).hasSize(15);
+        assertThat(slots).hasSize(17);
         assertThat(slots).allSatisfy(slot -> {
             assertThat(slot.tutorName()).isNotBlank();
             assertThat(slot.subjectName()).isNotBlank();
