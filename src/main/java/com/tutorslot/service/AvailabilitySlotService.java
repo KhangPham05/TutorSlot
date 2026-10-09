@@ -4,6 +4,7 @@ import com.tutorslot.dto.SlotDto;
 import com.tutorslot.dto.SlotsPageDto;
 import com.tutorslot.dto.SubjectOptionDto;
 import com.tutorslot.dto.TutorOptionDto;
+import com.tutorslot.exception.NotFoundException;
 import com.tutorslot.model.AvailabilitySlot;
 import com.tutorslot.model.Provider;
 import com.tutorslot.model.Subject;
@@ -68,6 +69,22 @@ public class AvailabilitySlotService {
 
         return new SlotsPageDto(slotDtos, tutors, subjects, currentPage, totalPages,
                 providerId, serviceId, date != null ? date.toString() : null);
+    }
+
+    // For the book-form page: one slot's display info. A plain lookup, not locked -- the
+    // authoritative future/already-booked check happens in BookingService at submit time.
+    public SlotDto findSlotSummary(Long slotId) {
+        AvailabilitySlot slot = availabilitySlotRepository.findById(slotId)
+                .orElseThrow(() -> new NotFoundException("No slot with id " + slotId));
+
+        Map<Long, Provider> providersById = providerRepository.findAll().stream()
+                .collect(Collectors.toMap(Provider::providerId, Function.identity()));
+        Map<Long, User> usersById = userRepository.findAll().stream()
+                .collect(Collectors.toMap(User::userId, Function.identity()));
+        Map<Long, Subject> subjectsById = subjectRepository.findAll().stream()
+                .collect(Collectors.toMap(Subject::serviceId, Function.identity()));
+
+        return toSlotDto(slot, providersById, usersById, subjectsById);
     }
 
     private SlotDto toSlotDto(AvailabilitySlot slot, Map<Long, Provider> providersById,

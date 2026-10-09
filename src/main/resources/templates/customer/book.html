@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Book a session - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        label { display: block; margin-top: 12px; }
+        textarea { width: 100%; box-sizing: border-box; }
+        button { margin-top: 16px; padding: 8px 16px; }
+        .summary { padding: 12px; border: 1px solid currentColor; border-radius: 4px; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<h1>Book a session</h1>
+
+<div class="summary">
+    <p><strong th:text="${slot.subjectName}">Subject</strong> with <span th:text="${slot.tutorName}">Tutor</span></p>
+    <p th:text="${#temporals.format(slot.startTime, 'EEEE, MMM d, h:mm a')} + ' - ' + ${#temporals.format(slot.endTime, 'h:mm a')}">When</p>
+</div>
+
+<form th:action="@{/customer/book}" method="post">
+    <input type="hidden" name="slotId" th:value="${slot.slotId}">
+
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" name="notes" rows="4"></textarea>
+
+    <button type="submit">Book this session</button>
+</form>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Booking confirmed - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .summary { padding: 12px; border: 1px solid currentColor; border-radius: 4px; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<h1>Booking confirmed</h1>
+
+<div class="summary">
+    <p><strong th:text="${confirmation.subjectName}">Subject</strong> with <span th:text="${confirmation.tutorName}">Tutor</span></p>
+    <p th:text="${#temporals.format(confirmation.startTime, 'EEEE, MMM d, h:mm a')} + ' - ' + ${#temporals.format(confirmation.endTime, 'h:mm a')}">When</p>
+    <p th:if="${confirmation.notes}">Notes: <span th:text="${confirmation.notes}"></span></p>
+</div>
+
+<p><a th:href="@{/slots}">Browse more slots</a></p>
+</body>
+</html>

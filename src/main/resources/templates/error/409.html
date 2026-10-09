@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Conflict - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>409 - Conflict</h1>
+<p>That slot isn't available anymore -- someone may have just booked it, or it's already past.</p>
+<p><a th:href="@{/slots}">Back to available slots</a></p>
+</body>
+</html>

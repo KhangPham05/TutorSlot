@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class AvailabilitySlotRepository {
@@ -37,6 +38,25 @@ public class AvailabilitySlotRepository {
                 + "FROM availability_slots s " + where
                 + " ORDER BY start_time LIMIT :limit OFFSET :offset";
         return jdbcTemplate.query(sql, params, SLOT_ROW_MAPPER);
+    }
+
+    public Optional<AvailabilitySlot> findById(Long slotId) {
+        List<AvailabilitySlot> rows = jdbcTemplate.query(
+                "SELECT slot_id, provider_id, service_id, start_time, end_time "
+                        + "FROM availability_slots WHERE slot_id = :slotId",
+                new MapSqlParameterSource("slotId", slotId), SLOT_ROW_MAPPER);
+        return rows.stream().findFirst();
+    }
+
+    // Locks the row for the rest of the caller's transaction -- a second transaction trying to
+    // lock the same slot_id blocks here until the first one commits or rolls back. This is what
+    // makes the booking flow's double-booking check reliable, on top of the DB-level unique index.
+    public Optional<AvailabilitySlot> lockForUpdate(Long slotId) {
+        List<AvailabilitySlot> rows = jdbcTemplate.query(
+                "SELECT slot_id, provider_id, service_id, start_time, end_time "
+                        + "FROM availability_slots WHERE slot_id = :slotId FOR UPDATE",
+                new MapSqlParameterSource("slotId", slotId), SLOT_ROW_MAPPER);
+        return rows.stream().findFirst();
     }
 
     public int countAvailable(Long providerId, Long serviceId, LocalDate date) {
