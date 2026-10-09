@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>My Appointments - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+        .message { padding: 8px 12px; border-radius: 4px; background: #e2f0fd; color: #1f4a7a; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<h1>My Appointments</h1>
+
+<p class="message" th:if="${message}" th:text="${message}"></p>
+
+<h2>Upcoming</h2>
+<table border="1" cellpadding="6">
+    <thead>
+    <tr>
+        <th>Tutor</th>
+        <th>Subject</th>
+        <th>Start</th>
+        <th>End</th>
+        <th>Notes</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="appt : ${myAppointments.upcoming}">
+        <td th:text="${appt.tutorName}">Tutor</td>
+        <td th:text="${appt.subjectName}">Subject</td>
+        <td th:text="${#temporals.format(appt.startTime, 'MMM d, h:mm a')}">Start</td>
+        <td th:text="${#temporals.format(appt.endTime, 'h:mm a')}">End</td>
+        <td th:text="${appt.notes}">Notes</td>
+        <td>
+            <form th:action="@{/customer/appointments/{id}/cancel(id=${appt.appointmentId})}" method="post">
+                <button type="submit">Cancel</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p th:if="${myAppointments.upcoming.isEmpty()}">No upcoming appointments.</p>
+
+<h2>History</h2>
+<table border="1" cellpadding="6">
+    <thead>
+    <tr>
+        <th>Tutor</th>
+        <th>Subject</th>
+        <th>Start</th>
+        <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="appt : ${myAppointments.history}">
+        <td th:text="${appt.tutorName}">Tutor</td>
+        <td th:text="${appt.subjectName}">Subject</td>
+        <td th:text="${#temporals.format(appt.startTime, 'MMM d, h:mm a')}">Start</td>
+        <td th:text="${appt.status}">Status</td>
+    </tr>
+    </tbody>
+</table>
+<p th:if="${myAppointments.history.isEmpty()}">No past appointments yet.</p>
+</body>
+</html>

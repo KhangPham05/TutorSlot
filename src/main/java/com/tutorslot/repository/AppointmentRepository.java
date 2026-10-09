@@ -58,4 +58,46 @@ public class AppointmentRepository {
                         + "VALUES (:slotId, :customerId, 'BOOKED', :notes) RETURNING appointment_id",
                 params, Long.class);
     }
+
+    public List<Appointment> findByCustomerId(Long customerId) {
+        return jdbcTemplate.query(
+                "SELECT appointment_id, slot_id, customer_id, status, notes, created_at, cancelled_at "
+                        + "FROM appointments WHERE customer_id = :customerId",
+                new MapSqlParameterSource("customerId", customerId), APPOINTMENT_ROW_MAPPER);
+    }
+
+    // One atomic statement: only cancels a BOOKED appointment the caller owns, and only while the
+    // slot hasn't started yet. Returns the number of rows updated (0 or 1) -- the service decides
+    // what 0 means (not found / not yours / already cancelled-or-started) with a follow-up read.
+    public int cancel(Long appointmentId, Long customerId) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("appointmentId", appointmentId)
+                .addValue("customerId", customerId);
+        return jdbcTemplate.update("""
+                UPDATE appointments a
+                SET status = 'CANCELLED', cancelled_at = NOW()
+                WHERE a.appointment_id = :appointmentId
+                  AND a.customer_id = :customerId
+                  AND a.status = 'BOOKED'
+                  AND EXISTS (
+                    SELECT 1 FROM availability_slots s
+                    WHERE s.slot_id = a.slot_id AND s.start_time > NOW()
+                  )
+                """, params);
+    }
+
+    // Run before any appointments listing (customer or provider): a BOOKED appointment whose
+    // slot has already ended is really COMPLETED, not still BOOKED. Scoped to all customers, not
+    // just the one currently viewing, so the status is consistent no matter who looks first.
+    public int markCompletedPastBookings() {
+        return jdbcTemplate.update("""
+                UPDATE appointments a
+                SET status = 'COMPLETED'
+                WHERE a.status = 'BOOKED'
+                  AND EXISTS (
+                    SELECT 1 FROM availability_slots s
+                    WHERE s.slot_id = a.slot_id AND s.end_time < NOW()
+                  )
+                """, new MapSqlParameterSource());
+    }
 }
