@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,6 +58,38 @@ public class AvailabilitySlotRepository {
                         + "FROM availability_slots WHERE slot_id = :slotId FOR UPDATE",
                 new MapSqlParameterSource("slotId", slotId), SLOT_ROW_MAPPER);
         return rows.stream().findFirst();
+    }
+
+    public List<AvailabilitySlot> findByProviderId(Long providerId) {
+        return jdbcTemplate.query(
+                "SELECT slot_id, provider_id, service_id, start_time, end_time "
+                        + "FROM availability_slots WHERE provider_id = :providerId ORDER BY start_time",
+                new MapSqlParameterSource("providerId", providerId), SLOT_ROW_MAPPER);
+    }
+
+    // Returns the new row's slot_id. A duplicate (provider_id, start_time) throws
+    // DuplicateKeyException -- the service translates that into a 409.
+    public Long insert(Long providerId, Long serviceId, LocalDateTime startTime, LocalDateTime endTime) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("providerId", providerId)
+                .addValue("serviceId", serviceId)
+                .addValue("startTime", startTime)
+                .addValue("endTime", endTime);
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO availability_slots (provider_id, service_id, start_time, end_time) "
+                        + "VALUES (:providerId, :serviceId, :startTime, :endTime) RETURNING slot_id",
+                params, Long.class);
+    }
+
+    // provider_id is included in the WHERE as a second ownership check, on top of the one the
+    // service already did -- belt and suspenders, same spirit as the cancel statement.
+    public int delete(Long slotId, Long providerId) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("slotId", slotId)
+                .addValue("providerId", providerId);
+        return jdbcTemplate.update(
+                "DELETE FROM availability_slots WHERE slot_id = :slotId AND provider_id = :providerId",
+                params);
     }
 
     public int countAvailable(Long providerId, Long serviceId, LocalDate date) {

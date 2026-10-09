@@ -47,6 +47,15 @@ public class AppointmentRepository {
         return count != null && count > 0;
     }
 
+    // Any status at all, including cancelled -- used before removing a slot, since cancelled
+    // appointments are still booking history and the FK (ON DELETE RESTRICT) would reject it.
+    public boolean hasAnyAppointmentForSlot(Long slotId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM appointments WHERE slot_id = :slotId",
+                new MapSqlParameterSource("slotId", slotId), Integer.class);
+        return count != null && count > 0;
+    }
+
     // Returns the new row's appointment_id (RETURNING, no separate generated-keys dance needed).
     public Long insertBooked(Long slotId, Long customerId, String notes) {
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -64,6 +73,18 @@ public class AppointmentRepository {
                 "SELECT appointment_id, slot_id, customer_id, status, notes, created_at, cancelled_at "
                         + "FROM appointments WHERE customer_id = :customerId",
                 new MapSqlParameterSource("customerId", customerId), APPOINTMENT_ROW_MAPPER);
+    }
+
+    // Appointments booked against any of this provider's slots -- a join against
+    // availability_slots, the same cross-table pattern this repository already uses for
+    // cancel() and markCompletedPastBookings().
+    public List<Appointment> findByProviderId(Long providerId) {
+        return jdbcTemplate.query("""
+                SELECT a.appointment_id, a.slot_id, a.customer_id, a.status, a.notes, a.created_at, a.cancelled_at
+                FROM appointments a
+                JOIN availability_slots s ON s.slot_id = a.slot_id
+                WHERE s.provider_id = :providerId
+                """, new MapSqlParameterSource("providerId", providerId), APPOINTMENT_ROW_MAPPER);
     }
 
     // One atomic statement: only cancels a BOOKED appointment the caller owns, and only while the

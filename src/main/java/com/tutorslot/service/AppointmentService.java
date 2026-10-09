@@ -67,9 +67,18 @@ public class AppointmentService {
     @Transactional
     public MyAppointmentsDto getMyAppointments(Long customerId) {
         appointmentRepository.markCompletedPastBookings();
+        return splitUpcomingAndHistory(appointmentRepository.findByCustomerId(customerId));
+    }
 
+    // Same idea, for a provider looking at appointments booked with them.
+    @Transactional
+    public MyAppointmentsDto getProviderAppointments(Long providerId) {
+        appointmentRepository.markCompletedPastBookings();
+        return splitUpcomingAndHistory(appointmentRepository.findByProviderId(providerId));
+    }
+
+    private MyAppointmentsDto splitUpcomingAndHistory(List<Appointment> appointments) {
         SlotLookups lookups = SlotLookups.load(providerRepository, userRepository, subjectRepository);
-        List<Appointment> appointments = appointmentRepository.findByCustomerId(customerId);
 
         List<AppointmentSummaryDto> upcoming = appointments.stream()
                 .filter(a -> a.status().equals("BOOKED"))
@@ -105,9 +114,10 @@ public class AppointmentService {
         AvailabilitySlot slot = availabilitySlotRepository.findById(appointment.slotId())
                 .orElseThrow(() -> new NotFoundException("Slot not found for appointment " + appointment.appointmentId()));
         User tutor = lookups.tutorFor(slot);
+        User customer = lookups.usersById().get(appointment.customerId());
         Subject subject = lookups.subjectFor(slot);
-        return new AppointmentSummaryDto(appointment.appointmentId(), tutor.fullName(), subject.name(),
-                slot.startTime(), slot.endTime(), appointment.status(), appointment.notes());
+        return new AppointmentSummaryDto(appointment.appointmentId(), tutor.fullName(), customer.fullName(),
+                subject.name(), slot.startTime(), slot.endTime(), appointment.status(), appointment.notes());
     }
 
     // Small bundle of the three reference-data maps every appointment needs enriching with --

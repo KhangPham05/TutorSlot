@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Provider Dashboard - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+        .message { padding: 8px 12px; border-radius: 4px; background: #e2f0fd; color: #1f4a7a; margin-bottom: 16px; }
+        .error { color: #7a1f1f; font-size: 0.9em; }
+        label { display: block; margin-top: 12px; }
+        form.create > button { margin-top: 16px; padding: 8px 16px; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<h1>Provider Dashboard</h1>
+
+<p class="message" th:if="${message}" th:text="${message}"></p>
+
+<h2>My Slots</h2>
+<table border="1" cellpadding="6">
+    <thead>
+    <tr>
+        <th>Subject</th>
+        <th>Start</th>
+        <th>End</th>
+        <th>Status</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="slot : ${dashboard.slots}">
+        <td th:text="${slot.subjectName}">Subject</td>
+        <td th:text="${#temporals.format(slot.startTime, 'MMM d, h:mm a')}">Start</td>
+        <td th:text="${#temporals.format(slot.endTime, 'h:mm a')}">End</td>
+        <td th:text="${slot.booked} ? 'Booked' : 'Open'">Status</td>
+        <td>
+            <form th:action="@{/provider/slots/{id}/delete(id=${slot.slotId})}" method="post">
+                <button type="submit">Remove</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p th:if="${dashboard.slots.isEmpty()}">You haven't opened any slots yet.</p>
+
+<h2>Open a New Slot</h2>
+<form class="create" th:action="@{/provider/slots}" th:object="${createSlotRequest}" method="post">
+    <label for="serviceId">Subject</label>
+    <select id="serviceId" th:field="*{serviceId}">
+        <option value="">Choose a subject</option>
+        <option th:each="subject : ${dashboard.subjects}"
+                th:value="${subject.serviceId}"
+                th:text="${subject.name}"></option>
+    </select>
+    <p class="error" th:if="${#fields.hasErrors('serviceId')}" th:errors="*{serviceId}"></p>
+
+    <label for="startDateTime">Start</label>
+    <input type="datetime-local" id="startDateTime" th:field="*{startDateTime}">
+    <p class="error" th:if="${#fields.hasErrors('startDateTime')}" th:errors="*{startDateTime}"></p>
+
+    <button type="submit">Open slot</button>
+</form>
+</body>
+</html>
