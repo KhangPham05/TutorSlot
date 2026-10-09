@@ -1,15 +1,17 @@
--- TutorSlot sample data (Milestone 1)
+-- TutorSlot sample data (Milestone 1 + Milestone 2)
 -- Loaded after schema.sql. Slot times are relative to CURRENT_DATE so they are always in the
--- future, no matter when this script runs.
+-- future (or, for the one past slot below, always in the past), no matter when this script runs.
 
--- 3 tutors (PROVIDER users) + 3 students (CUSTOMER users)
+-- 3 tutors (PROVIDER users) + 3 students (CUSTOMER users).
+-- Every demo account shares the password "password123" (BCryptPasswordEncoder, strength 10).
 INSERT INTO users (email, password_hash, full_name, role) VALUES
-    ('alice.tutor@sjsu.edu',  'placeholder', 'Alice Nguyen',  'PROVIDER'),
-    ('bob.tutor@sjsu.edu',    'placeholder', 'Bob Martinez',  'PROVIDER'),
-    ('carla.tutor@sjsu.edu',  'placeholder', 'Carla Osei',    'PROVIDER'),
-    ('dan.student@sjsu.edu',  'placeholder', 'Dan Kim',       'CUSTOMER'),
-    ('erin.student@sjsu.edu', 'placeholder', 'Erin Patel',    'CUSTOMER'),
-    ('finn.student@sjsu.edu', 'placeholder', 'Finn O''Brien', 'CUSTOMER');
+    ('alice.tutor@sjsu.edu',  '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Alice Nguyen',  'PROVIDER'),
+    ('bob.tutor@sjsu.edu',    '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Bob Martinez',  'PROVIDER'),
+    ('carla.tutor@sjsu.edu',  '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Carla Osei',    'PROVIDER'),
+    ('dan.student@sjsu.edu',  '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Dan Kim',       'CUSTOMER'),
+    ('erin.student@sjsu.edu', '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Erin Patel',    'CUSTOMER'),
+    ('finn.student@sjsu.edu', '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Finn O''Brien', 'CUSTOMER'),
+    ('hoangpham123@sjsu.edu', '$2a$10$2C9mHY3KCjWHLHcVChNBkO1IuEqDThM1T/uvSt5tM780egGQVXu6K', 'Hoang Pham',    'CUSTOMER');
 
 INSERT INTO providers (user_id, title, bio) VALUES
     ((SELECT user_id FROM users WHERE email = 'alice.tutor@sjsu.edu'), 'Math & CS Tutor',
@@ -34,7 +36,8 @@ INSERT INTO services (provider_id, name, description, duration_minutes) VALUES
     ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'carla.tutor@sjsu.edu'),
         'Physics II', 'Electricity and magnetism fundamentals.', 60);
 
--- ~18 slots spread over the next 7 days, 60-minute sessions during daytime hours (10am-4pm)
+-- ~18 slots spread over the next 7 days, 60-minute sessions during daytime hours (10am-4pm),
+-- plus one slot in the past (see below) for the M2 COMPLETED-status demo.
 INSERT INTO availability_slots (provider_id, service_id, start_time, end_time) VALUES
     -- Alice: Calculus I
     ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'alice.tutor@sjsu.edu'),
@@ -95,9 +98,15 @@ INSERT INTO availability_slots (provider_id, service_id, start_time, end_time) V
         CURRENT_DATE + INTERVAL '4 day' + TIME '13:00', CURRENT_DATE + INTERVAL '4 day' + TIME '14:00'),
     ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'carla.tutor@sjsu.edu'),
         (SELECT service_id FROM services WHERE name = 'Physics II'),
-        CURRENT_DATE + INTERVAL '7 day' + TIME '15:00', CURRENT_DATE + INTERVAL '7 day' + TIME '16:00');
+        CURRENT_DATE + INTERVAL '7 day' + TIME '15:00', CURRENT_DATE + INTERVAL '7 day' + TIME '16:00'),
+    -- Alice: Calculus I, one slot in the past, so there's a BOOKED appointment the M2 "mark
+    -- past bookings as COMPLETED" logic has something to act on.
+    ((SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'alice.tutor@sjsu.edu'),
+        (SELECT service_id FROM services WHERE name = 'Calculus I'),
+        CURRENT_DATE - INTERVAL '2 day' + TIME '10:00', CURRENT_DATE - INTERVAL '2 day' + TIME '11:00');
 
--- 2-3 BOOKED appointments and 1 CANCELLED, so GET /slots visibly hides the booked ones.
+-- 3 BOOKED (future) + 1 CANCELLED appointment, so GET /slots visibly hides the booked ones.
+-- A 4th BOOKED appointment, on the past slot above, is added further down.
 -- Dan books Alice's Calculus I slot (day 1, 10:00).
 INSERT INTO appointments (slot_id, customer_id, status, notes) VALUES
     ((SELECT slot_id FROM availability_slots
@@ -125,3 +134,12 @@ INSERT INTO appointments (slot_id, customer_id, status, notes, cancelled_at) VAL
         WHERE provider_id = (SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'alice.tutor@sjsu.edu')
           AND start_time = CURRENT_DATE + INTERVAL '3 day' + TIME '10:00'),
      (SELECT user_id FROM users WHERE email = 'dan.student@sjsu.edu'), 'CANCELLED', 'Schedule conflict came up.', NOW());
+
+-- Finn booked Alice's past Calculus I slot. Still BOOKED here on purpose: the seed inserts
+-- directly, bypassing BookingService, so the M2 appointments-list logic is what flips this to
+-- COMPLETED (status BOOKED + slot.end_time < NOW()) the first time that page is loaded.
+INSERT INTO appointments (slot_id, customer_id, status, notes) VALUES
+    ((SELECT slot_id FROM availability_slots
+        WHERE provider_id = (SELECT provider_id FROM providers p JOIN users u ON u.user_id = p.user_id WHERE u.email = 'alice.tutor@sjsu.edu')
+          AND start_time = CURRENT_DATE - INTERVAL '2 day' + TIME '10:00'),
+     (SELECT user_id FROM users WHERE email = 'finn.student@sjsu.edu'), 'BOOKED', 'Past session, should show as completed.');

@@ -26,7 +26,7 @@ class RepositorySmokeTest {
 
     @Test
     void seedDataLoadsAsExpected() {
-        assertThat(userRepository.findAll()).hasSize(6);
+        assertThat(userRepository.findAll()).hasSize(7);
         assertThat(providerRepository.findAll()).hasSize(3);
         assertThat(subjectRepository.findAll()).hasSize(6);
     }

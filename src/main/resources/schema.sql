@@ -11,7 +11,7 @@ DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE users (
     user_id        BIGSERIAL PRIMARY KEY,
     email          VARCHAR(255) NOT NULL,
-    password_hash  VARCHAR(255) NOT NULL, -- placeholder text in M1, real BCrypt hash in M2
+    password_hash  VARCHAR(255) NOT NULL, -- BCrypt hash (see seed.sql)
     full_name      VARCHAR(100) NOT NULL,
     role           VARCHAR(20)  NOT NULL,
     created_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
@@ -71,7 +71,7 @@ CREATE TABLE appointments (
     cancelled_at    TIMESTAMP NULL,
     CONSTRAINT fk_appointments_slot FOREIGN KEY (slot_id) REFERENCES availability_slots (slot_id),
     CONSTRAINT fk_appointments_customer FOREIGN KEY (customer_id) REFERENCES users (user_id),
-    CONSTRAINT ck_appointments_status CHECK (status IN ('BOOKED', 'CANCELLED')),
+    CONSTRAINT ck_appointments_status CHECK (status IN ('BOOKED', 'CANCELLED', 'COMPLETED')),
     CONSTRAINT ck_appointments_cancelled_at_consistency
         CHECK ((status = 'CANCELLED') = (cancelled_at IS NOT NULL))
 );
