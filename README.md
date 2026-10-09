@@ -48,6 +48,7 @@ Controller -> Service -> Repository -> PostgreSQL
 TutorSlot/
 ├── pom.xml
 ├── mvnw, mvnw.cmd                     # Maven wrapper — build/run without a local Maven install
+├── docs/er-diagram.svg                # ER diagram used in this README
 ├── src/
 │   ├── main/
 │   │   ├── java/com/tutorslot/
@@ -59,12 +60,12 @@ TutorSlot/
 │   │   │   ├── service/                       # ProviderService, AvailabilitySlotService,
 │   │   │   │                                  #   BookingService, BookingFacade, AppointmentService,
 │   │   │   │                                  #   ProviderDashboardService, CurrentUserService
-│   │   │   ├── repository/                     # UserRepository, ProviderRepository, SubjectRepository,
+│   │   │   ├── repository/                    # UserRepository, ProviderRepository, SubjectRepository,
 │   │   │   │                                  #   AvailabilitySlotRepository, AppointmentRepository
-│   │   │   ├── model/                          # User, Provider, Subject, AvailabilitySlot, Appointment
-│   │   │   ├── dto/                            # view-facing DTOs (one per page/concern)
-│   │   │   ├── exception/                      # NotFoundException, ForbiddenException, SlotConflictException
-│   │   │   └── web/                            # GlobalExceptionHandler (@ControllerAdvice)
+│   │   │   ├── model/                         # User, Provider, Subject, AvailabilitySlot, Appointment
+│   │   │   ├── dto/                           # view-facing DTOs (one per page/concern)
+│   │   │   ├── exception/                     # NotFoundException, ForbiddenException, SlotConflictException
+│   │   │   └── web/                           # GlobalExceptionHandler (@ControllerAdvice)
 │   │   └── resources/
 │   │       ├── schema.sql                      # all 5 tables + constraints, rerunnable
 │   │       ├── seed.sql                        # sample tutors, students, subjects, slots, bookings
@@ -93,53 +94,11 @@ Five tables. `services` holds the subjects a tutor teaches; `availability_slots`
 bookable time windows; a slot is "available" when it's in the future and has no active `BOOKED`
 appointment — that's computed at query time, not stored as a column.
 
-```mermaid
-erDiagram
-    USERS ||--o| PROVIDERS : "has profile"
-    USERS ||--o{ APPOINTMENTS : books
-    PROVIDERS ||--o{ SERVICES : offers
-    PROVIDERS ||--o{ AVAILABILITY_SLOTS : opens
-    SERVICES ||--o{ AVAILABILITY_SLOTS : "is for"
-    AVAILABILITY_SLOTS ||--o{ APPOINTMENTS : "booked via"
+![TutorSlot ER diagram](docs/er-diagram.svg)
 
-    USERS {
-        bigint user_id PK
-        varchar email UK
-        varchar password_hash "BCrypt"
-        varchar full_name
-        varchar role "CUSTOMER or PROVIDER"
-        timestamp created_at
-    }
-    PROVIDERS {
-        bigint provider_id PK
-        bigint user_id FK "unique, 1:1 with users"
-        varchar title
-        text bio
-    }
-    SERVICES {
-        bigint service_id PK
-        bigint provider_id FK
-        varchar name
-        text description
-        int duration_minutes
-    }
-    AVAILABILITY_SLOTS {
-        bigint slot_id PK
-        bigint provider_id FK
-        bigint service_id FK "composite FK to services(service_id, provider_id)"
-        timestamp start_time
-        timestamp end_time
-    }
-    APPOINTMENTS {
-        bigint appointment_id PK
-        bigint slot_id FK
-        bigint customer_id FK "references users"
-        varchar status "BOOKED, CANCELLED, or COMPLETED"
-        text notes
-        timestamp created_at
-        timestamp cancelled_at
-    }
-```
+Only keys and the few fields that matter for understanding the flow are shown here (`role` on
+`users`, `status` on `appointments`, timing on `availability_slots`) — the full column list with
+every constraint is in `schema.sql` and the prose above.
 
 The double-booking guard lives in the database itself: a partial unique index,
 `UNIQUE (slot_id) WHERE status = 'BOOKED'`, guarantees at most one active booking per slot, so two

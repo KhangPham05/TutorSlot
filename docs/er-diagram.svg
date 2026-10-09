@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 870 410" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569" />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="870" height="410" fill="#ffffff" />
+
+  <!-- connectors (drawn first, under the boxes) -->
+  <line x1="260" y1="88" x2="320" y2="77" stroke="#475569" stroke-width="1.4" marker-end="url(#arrow)" />
+  <text x="290" y="70" text-anchor="middle" font-size="11" fill="#475569">1 : 0..1</text>
+
+  <line x1="150" y1="136" x2="150" y2="226" stroke="#475569" stroke-width="1.4" marker-end="url(#arrow)" />
+  <text x="168" y="184" text-anchor="middle" font-size="11" fill="#475569">1 : N</text>
+
+  <line x1="430" y1="114" x2="430" y2="226" stroke="#475569" stroke-width="1.4" marker-end="url(#arrow)" />
+  <text x="448" y="184" text-anchor="middle" font-size="11" fill="#475569">1 : N</text>
+
+  <line x1="520" y1="114" x2="610" y2="226" stroke="#475569" stroke-width="1.4" marker-end="url(#arrow)" />
+  <text x="600" y="165" text-anchor="middle" font-size="11" fill="#475569">1 : N</text>
+
+  <line x1="590" y1="285" x2="550" y2="296" stroke="#475569" stroke-width="1.4" marker-end="url(#arrow)" />
+  <text x="570" y="275" text-anchor="middle" font-size="11" fill="#475569">1 : N</text>
+
+  <line x1="310" y1="296" x2="260" y2="285" stroke="#475569" stroke-width="1.4" marker-end="url(#arrow)" />
+  <text x="285" y="275" text-anchor="middle" font-size="11" fill="#475569">1 : N</text>
+
+  <!-- USERS -->
+  <g>
+    <rect x="40" y="40" width="220" height="96" rx="6" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.6" />
+    <rect x="40" y="40" width="220" height="30" rx="6" fill="#1e3a8a" />
+    <rect x="40" y="58" width="220" height="12" fill="#1e3a8a" />
+    <text x="150" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">USERS</text>
+    <text x="52" y="86" font-size="12" fill="#0f172a">user_id</text>
+    <text x="248" y="86" text-anchor="end" font-size="11" font-weight="700" fill="#1e3a8a">PK</text>
+    <text x="52" y="108" font-size="12" fill="#0f172a">email</text>
+    <text x="248" y="108" text-anchor="end" font-size="11" font-weight="700" fill="#334155">UK</text>
+    <text x="52" y="130" font-size="12" fill="#0f172a">role</text>
+    <line x1="40" y1="92" x2="260" y2="92" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="40" y1="114" x2="260" y2="114" stroke="#e2e8f0" stroke-width="1" />
+  </g>
+
+  <!-- PROVIDERS -->
+  <g>
+    <rect x="320" y="40" width="220" height="74" rx="6" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.6" />
+    <rect x="320" y="40" width="220" height="30" rx="6" fill="#1e3a8a" />
+    <rect x="320" y="58" width="220" height="12" fill="#1e3a8a" />
+    <text x="430" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">PROVIDERS</text>
+    <text x="332" y="86" font-size="12" fill="#0f172a">provider_id</text>
+    <text x="528" y="86" text-anchor="end" font-size="11" font-weight="700" fill="#1e3a8a">PK</text>
+    <text x="332" y="108" font-size="12" fill="#0f172a">user_id</text>
+    <text x="528" y="108" text-anchor="end" font-size="11" font-weight="700" fill="#334155">FK, UK</text>
+    <line x1="320" y1="92" x2="540" y2="92" stroke="#e2e8f0" stroke-width="1" />
+  </g>
+
+  <!-- APPOINTMENTS -->
+  <g>
+    <rect x="40" y="226" width="220" height="118" rx="6" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.6" />
+    <rect x="40" y="226" width="220" height="30" rx="6" fill="#1e3a8a" />
+    <rect x="40" y="244" width="220" height="12" fill="#1e3a8a" />
+    <text x="150" y="246" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">APPOINTMENTS</text>
+    <text x="52" y="272" font-size="12" fill="#0f172a">appointment_id</text>
+    <text x="248" y="272" text-anchor="end" font-size="11" font-weight="700" fill="#1e3a8a">PK</text>
+    <text x="52" y="294" font-size="12" fill="#0f172a">slot_id</text>
+    <text x="248" y="294" text-anchor="end" font-size="11" font-weight="700" fill="#334155">FK</text>
+    <text x="52" y="316" font-size="12" fill="#0f172a">customer_id</text>
+    <text x="248" y="316" text-anchor="end" font-size="11" font-weight="700" fill="#334155">FK</text>
+    <text x="52" y="338" font-size="12" fill="#0f172a">status</text>
+    <line x1="40" y1="278" x2="260" y2="278" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="40" y1="300" x2="260" y2="300" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="40" y1="322" x2="260" y2="322" stroke="#e2e8f0" stroke-width="1" />
+  </g>
+
+  <!-- AVAILABILITY_SLOTS -->
+  <g>
+    <rect x="310" y="226" width="240" height="140" rx="6" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.6" />
+    <rect x="310" y="226" width="240" height="30" rx="6" fill="#1e3a8a" />
+    <rect x="310" y="244" width="240" height="12" fill="#1e3a8a" />
+    <text x="430" y="246" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">AVAILABILITY_SLOTS</text>
+    <text x="322" y="272" font-size="12" fill="#0f172a">slot_id</text>
+    <text x="538" y="272" text-anchor="end" font-size="11" font-weight="700" fill="#1e3a8a">PK</text>
+    <text x="322" y="294" font-size="12" fill="#0f172a">provider_id</text>
+    <text x="538" y="294" text-anchor="end" font-size="11" font-weight="700" fill="#334155">FK</text>
+    <text x="322" y="316" font-size="12" fill="#0f172a">service_id</text>
+    <text x="538" y="316" text-anchor="end" font-size="11" font-weight="700" fill="#334155">FK</text>
+    <text x="322" y="338" font-size="12" fill="#0f172a">start_time</text>
+    <text x="322" y="360" font-size="12" fill="#0f172a">end_time</text>
+    <line x1="310" y1="278" x2="550" y2="278" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="310" y1="300" x2="550" y2="300" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="310" y1="322" x2="550" y2="322" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="310" y1="344" x2="550" y2="344" stroke="#e2e8f0" stroke-width="1" />
+  </g>
+
+  <!-- SERVICES -->
+  <g>
+    <rect x="590" y="226" width="220" height="118" rx="6" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.6" />
+    <rect x="590" y="226" width="220" height="30" rx="6" fill="#1e3a8a" />
+    <rect x="590" y="244" width="220" height="12" fill="#1e3a8a" />
+    <text x="700" y="246" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">SERVICES</text>
+    <text x="602" y="272" font-size="12" fill="#0f172a">service_id</text>
+    <text x="798" y="272" text-anchor="end" font-size="11" font-weight="700" fill="#1e3a8a">PK</text>
+    <text x="602" y="294" font-size="12" fill="#0f172a">provider_id</text>
+    <text x="798" y="294" text-anchor="end" font-size="11" font-weight="700" fill="#334155">FK</text>
+    <text x="602" y="316" font-size="12" fill="#0f172a">name</text>
+    <text x="602" y="338" font-size="12" fill="#0f172a">duration_minutes</text>
+    <line x1="590" y1="278" x2="810" y2="278" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="590" y1="300" x2="810" y2="300" stroke="#e2e8f0" stroke-width="1" />
+    <line x1="590" y1="322" x2="810" y2="322" stroke="#e2e8f0" stroke-width="1" />
+  </g>
+
+  <text x="40" y="398" font-size="11" fill="#64748b">PK = primary key &#8226; FK = foreign key &#8226; UK = unique</text>
+</svg>
