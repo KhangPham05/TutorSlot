@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class UserRepository {
@@ -29,5 +30,12 @@ public class UserRepository {
         return jdbcTemplate.query(
                 "SELECT user_id, email, password_hash, full_name, role, created_at FROM users",
                 USER_ROW_MAPPER);
+    }
+
+    public Optional<User> findByEmail(String email) {
+        List<User> users = jdbcTemplate.query(
+                "SELECT user_id, email, password_hash, full_name, role, created_at FROM users WHERE email = ?",
+                USER_ROW_MAPPER, email);
+        return users.stream().findFirst();
     }
 }

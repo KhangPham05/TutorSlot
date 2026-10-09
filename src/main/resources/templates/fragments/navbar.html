@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<nav th:fragment="navbar" style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid currentColor;">
+    <a th:href="@{/}">TutorSlot</a>
+    &nbsp;|&nbsp;
+    <a th:href="@{/slots}">Browse slots</a>
+
+    <span sec:authorize="!isAuthenticated()">
+        &nbsp;|&nbsp;
+        <a th:href="@{/login}">Log in</a>
+    </span>
+
+    <span sec:authorize="isAuthenticated()">
+        &nbsp;|&nbsp;
+        <a sec:authorize="hasRole('CUSTOMER')" th:href="@{/customer/appointments}">My appointments</a>
+        <a sec:authorize="hasRole('PROVIDER')" th:href="@{/provider/dashboard}">Dashboard</a>
+        &nbsp;|&nbsp;
+        Logged in as <span sec:authentication="name">user@example.com</span>
+        &nbsp;
+        <form th:action="@{/logout}" method="post" style="display: inline;">
+            <button type="submit">Log out</button>
+        </form>
+    </span>
+</nav>
+</body>
+</html>

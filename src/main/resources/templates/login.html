@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Log in - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 400px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        label { display: block; margin-top: 12px; }
+        input[type=text], input[type=password] { width: 100%; padding: 6px; box-sizing: border-box; }
+        button { margin-top: 16px; padding: 8px 16px; }
+        .message { padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; }
+        .error { background: #fde2e2; color: #7a1f1f; }
+        .info { background: #e2f0fd; color: #1f4a7a; }
+    </style>
+</head>
+<body>
+<h1>Log in</h1>
+<p><a th:href="@{/}">Back to home</a></p>
+
+<p class="message error" th:if="${param.error}">Incorrect email or password.</p>
+<p class="message info" th:if="${param.logout}">You have been logged out.</p>
+
+<form th:action="@{/login}" method="post">
+    <label for="username">Email</label>
+    <input type="text" id="username" name="username" autocomplete="username" required>
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+    <button type="submit">Log in</button>
+</form>
+</body>
+</html>
