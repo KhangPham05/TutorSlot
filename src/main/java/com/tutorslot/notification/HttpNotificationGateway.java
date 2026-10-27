@@ -40,13 +40,13 @@ public class HttpNotificationGateway implements NotificationGateway {
                         .body(request)
                         .retrieve()
                         .body(MockResponseBody.class);
-                return NotificationResult.success(body != null ? body.status() : "UNKNOWN");
+                return NotificationResult.success(body != null ? body.status() : "UNKNOWN", attempt);
             } catch (HttpClientErrorException e) {
                 // 4xx is our own bug or bad config (wrong API key, malformed request) -- retrying
                 // the exact same request can't fix that, so don't.
                 log.warn("Notification attempt {}/{} failed: key={} cause={} (client error, not retrying)",
                         attempt, maxAttempts, request.idempotencyKey(), e.getStatusCode());
-                return NotificationResult.failure("Client error: " + e.getStatusCode());
+                return NotificationResult.failure("Client error: " + e.getStatusCode(), attempt);
             } catch (HttpServerErrorException | ResourceAccessException e) {
                 lastFailureReason = e.getMessage();
                 log.warn("Notification attempt {}/{} failed: key={} cause={}",
@@ -57,7 +57,7 @@ public class HttpNotificationGateway implements NotificationGateway {
             }
         }
 
-        return NotificationResult.failure(lastFailureReason);
+        return NotificationResult.failure(lastFailureReason, maxAttempts);
     }
 
     // 200ms after the 1st failed attempt, 400ms after the 2nd -- no wait after the 3rd, since

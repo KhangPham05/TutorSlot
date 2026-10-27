@@ -38,4 +38,11 @@ public class UserRepository {
                 USER_ROW_MAPPER, email);
         return users.stream().findFirst();
     }
+
+    public Optional<User> findById(Long userId) {
+        List<User> users = jdbcTemplate.query(
+                "SELECT user_id, email, password_hash, full_name, role, created_at FROM users WHERE user_id = ?",
+                USER_ROW_MAPPER, userId);
+        return users.stream().findFirst();
+    }
 }

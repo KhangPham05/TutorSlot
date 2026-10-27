@@ -37,4 +37,11 @@ public class ProviderRepository {
                 new MapSqlParameterSource("userId", userId), PROVIDER_ROW_MAPPER);
         return rows.stream().findFirst();
     }
+
+    public Optional<Provider> findById(Long providerId) {
+        List<Provider> rows = jdbcTemplate.query(
+                "SELECT provider_id, user_id, title, bio FROM providers WHERE provider_id = :providerId",
+                new MapSqlParameterSource("providerId", providerId), PROVIDER_ROW_MAPPER);
+        return rows.stream().findFirst();
+    }
 }

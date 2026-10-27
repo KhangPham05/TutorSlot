@@ -3,8 +3,10 @@ package com.tutorslot.service;
 import com.tutorslot.exception.NotFoundException;
 import com.tutorslot.exception.SlotConflictException;
 import com.tutorslot.model.AvailabilitySlot;
+import com.tutorslot.notification.AppointmentBookedEvent;
 import com.tutorslot.repository.AppointmentRepository;
 import com.tutorslot.repository.AvailabilitySlotRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -17,11 +19,13 @@ public class BookingService {
 
     private final AvailabilitySlotRepository availabilitySlotRepository;
     private final AppointmentRepository appointmentRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public BookingService(AvailabilitySlotRepository availabilitySlotRepository,
-                           AppointmentRepository appointmentRepository) {
+                           AppointmentRepository appointmentRepository, ApplicationEventPublisher eventPublisher) {
         this.availabilitySlotRepository = availabilitySlotRepository;
         this.appointmentRepository = appointmentRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     // READ COMMITTED (Postgres's default, set explicitly so it's visible here): the row lock
@@ -43,11 +47,18 @@ public class BookingService {
             throw new SlotConflictException("This slot is already booked.");
         }
 
+        Long appointmentId;
         try {
-            return appointmentRepository.insertBooked(slotId, customerId, notes);
+            appointmentId = appointmentRepository.insertBooked(slotId, customerId, notes);
         } catch (DuplicateKeyException e) {
             // Backstop: uq_one_active_booking_per_slot caught a race the checks above missed.
             throw new SlotConflictException("This slot is already booked.");
         }
+
+        // Published inside this same transaction, so the AFTER_COMMIT listener only ever fires
+        // for a booking that actually committed -- if we threw above instead, this line never
+        // runs and no notification is ever queued for a booking that didn't happen.
+        eventPublisher.publishEvent(new AppointmentBookedEvent(appointmentId));
+        return appointmentId;
     }
 }

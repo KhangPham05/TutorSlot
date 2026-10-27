@@ -11,11 +11,13 @@ import com.tutorslot.model.AvailabilitySlot;
 import com.tutorslot.model.Provider;
 import com.tutorslot.model.Subject;
 import com.tutorslot.model.User;
+import com.tutorslot.notification.AppointmentCancelledEvent;
 import com.tutorslot.repository.AppointmentRepository;
 import com.tutorslot.repository.AvailabilitySlotRepository;
 import com.tutorslot.repository.ProviderRepository;
 import com.tutorslot.repository.SubjectRepository;
 import com.tutorslot.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,16 +35,18 @@ public class AppointmentService {
     private final ProviderRepository providerRepository;
     private final UserRepository userRepository;
     private final SubjectRepository subjectRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                                AvailabilitySlotRepository availabilitySlotRepository,
                                ProviderRepository providerRepository, UserRepository userRepository,
-                               SubjectRepository subjectRepository) {
+                               SubjectRepository subjectRepository, ApplicationEventPublisher eventPublisher) {
         this.appointmentRepository = appointmentRepository;
         this.availabilitySlotRepository = availabilitySlotRepository;
         this.providerRepository = providerRepository;
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public BookingConfirmationDto getConfirmation(Long appointmentId, Long requestingUserId) {
@@ -95,9 +99,14 @@ public class AppointmentService {
         return new MyAppointmentsDto(upcoming, history);
     }
 
+    // @Transactional so the event below only ever fires (AFTER_COMMIT, in the listener) for a
+    // cancel that actually committed -- a single UPDATE is already atomic on its own, but the
+    // listener needs an actual transaction boundary to hang the event off of.
+    @Transactional
     public void cancel(Long appointmentId, Long customerId) {
         int updated = appointmentRepository.cancel(appointmentId, customerId);
         if (updated > 0) {
+            eventPublisher.publishEvent(new AppointmentCancelledEvent(appointmentId));
             return;
         }
 
