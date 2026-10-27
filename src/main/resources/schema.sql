@@ -1,6 +1,7 @@
 -- TutorSlot schema (Milestone 1)
 -- Rerunnable: drops all tables (reverse dependency order) before recreating them.
 
+DROP TABLE IF EXISTS pending_notifications CASCADE;
 DROP TABLE IF EXISTS appointments CASCADE;
 DROP TABLE IF EXISTS availability_slots CASCADE;
 DROP TABLE IF EXISTS services CASCADE;
@@ -82,3 +83,25 @@ CREATE TABLE appointments (
 CREATE UNIQUE INDEX uq_one_active_booking_per_slot
     ON appointments (slot_id)
     WHERE status = 'BOOKED';
+
+-- pending_notifications: a durable outbox for notifications the mock external service couldn't
+-- take delivery of (down, slow, or any temporary failure). No FK to anything -- it only needs an
+-- appointment_id to build the resend, not a hard relational link. uq_pending_idempotency_key is
+-- what makes save() safe to call more than once for the same notification: the resend job and a
+-- fresh booking/cancel both use the same idempotency key, so this table can never queue a
+-- duplicate either.
+CREATE TABLE pending_notifications (
+    pending_id       BIGSERIAL PRIMARY KEY,
+    idempotency_key  VARCHAR(100) NOT NULL,
+    recipient        VARCHAR(255) NOT NULL,
+    type             VARCHAR(30)  NOT NULL,
+    message          TEXT         NOT NULL,
+    appointment_id   BIGINT       NOT NULL,
+    status           VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    attempts         INT          NOT NULL DEFAULT 0,
+    last_error       TEXT,
+    created_at       TIMESTAMP    NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMP    NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_pending_idempotency_key UNIQUE (idempotency_key),
+    CONSTRAINT ck_pending_status CHECK (status IN ('PENDING', 'SENT', 'FAILED'))
+);
