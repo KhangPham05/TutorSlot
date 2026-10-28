@@ -1,5 +1,6 @@
 package com.tutorslot.notification;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -31,7 +32,7 @@ class HttpNotificationGatewayTest {
     void sendsApiKeyHeaderAndJsonBodyAndReturnsSuccessOn202() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3);
+        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3, new SimpleMeterRegistry());
 
         server.expect(requestTo(BASE_URL + "/notifications"))
                 .andExpect(method(HttpMethod.POST))
@@ -52,7 +53,7 @@ class HttpNotificationGatewayTest {
     void retriesOn503AndEventuallySucceeds() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3);
+        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3, new SimpleMeterRegistry());
 
         server.expect(requestTo(BASE_URL + "/notifications"))
                 .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
@@ -70,7 +71,7 @@ class HttpNotificationGatewayTest {
     void retriesOnTimeoutUpToMaxAttemptsThenReturnsFailureWithoutThrowing() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3);
+        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3, new SimpleMeterRegistry());
 
         for (int i = 0; i < 3; i++) {
             server.expect(requestTo(BASE_URL + "/notifications"))
@@ -89,7 +90,7 @@ class HttpNotificationGatewayTest {
     void doesNotRetryOn400() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3);
+        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3, new SimpleMeterRegistry());
 
         // Only one expectation registered: if the gateway retried, the second call would find no
         // matching expectation and the test would fail right there.
@@ -105,7 +106,7 @@ class HttpNotificationGatewayTest {
     void doesNotRetryOn401() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3);
+        HttpNotificationGateway gateway = new HttpNotificationGateway(builder.build(), "dev-key", 3, new SimpleMeterRegistry());
 
         server.expect(requestTo(BASE_URL + "/notifications")).andRespond(withUnauthorizedRequest());
 

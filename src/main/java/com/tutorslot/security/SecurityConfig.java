@@ -31,6 +31,10 @@ public class SecurityConfig {
                         // over HTTP+JSON with its own API key -- it has no browser session, so it
                         // can't be gated by a role rule, and the API key is its own protection.
                         .requestMatchers("/mock-notify/**").permitAll()
+                        // Only health and metrics are exposed (see application.properties), and
+                        // both stay open for the demo and for Docker's healthcheck, which has no
+                        // session either.
+                        .requestMatchers("/health", "/metrics/**").permitAll()
                         .requestMatchers("/customer/**").hasRole("CUSTOMER")
                         .requestMatchers("/provider/**").hasRole("PROVIDER")
                         .anyRequest().authenticated())

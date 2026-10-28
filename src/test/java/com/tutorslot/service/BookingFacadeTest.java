@@ -1,9 +1,10 @@
 package com.tutorslot.service;
 
 import com.tutorslot.exception.SlotConflictException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.CannotAcquireLockException;
@@ -21,11 +22,15 @@ class BookingFacadeTest {
     @Mock
     private BookingService bookingService;
 
-    @InjectMocks
     private BookingFacade bookingFacade;
 
     private static final Long SLOT_ID = 1L;
     private static final Long CUSTOMER_ID = 2L;
+
+    @BeforeEach
+    void setUp() {
+        bookingFacade = new BookingFacade(bookingService, new SimpleMeterRegistry());
+    }
 
     @Test
     void retriesOnCannotAcquireLockExceptionAndEventuallySucceeds() {

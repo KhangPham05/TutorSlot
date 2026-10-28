@@ -2,6 +2,7 @@ package com.tutorslot.notification;
 
 import com.tutorslot.model.PendingNotification;
 import com.tutorslot.repository.PendingNotificationRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,10 +23,13 @@ public class NotificationResendJob {
 
     private final NotificationGateway gateway;
     private final PendingNotificationRepository pendingNotificationRepository;
+    private final MeterRegistry meterRegistry;
 
-    public NotificationResendJob(NotificationGateway gateway, PendingNotificationRepository pendingNotificationRepository) {
+    public NotificationResendJob(NotificationGateway gateway, PendingNotificationRepository pendingNotificationRepository,
+                                  MeterRegistry meterRegistry) {
         this.gateway = gateway;
         this.pendingNotificationRepository = pendingNotificationRepository;
+        this.meterRegistry = meterRegistry;
     }
 
     @Scheduled(fixedDelayString = "${notification.resend-interval-ms:30000}")
@@ -46,6 +50,7 @@ public class NotificationResendJob {
         if (result.success()) {
             pendingNotificationRepository.markSent(pending.pendingId());
             log.info("Notification sent: key={} attempt={}", pending.idempotencyKey(), result.attempts());
+            meterRegistry.counter("tutorslot.notifications", "result", "sent").increment();
             return;
         }
 
@@ -56,6 +61,7 @@ public class NotificationResendJob {
         if (totalAttempts >= MAX_TOTAL_ATTEMPTS) {
             pendingNotificationRepository.markFailed(pending.pendingId());
             log.error("Notification permanently failed after {} attempts: key={}", totalAttempts, pending.idempotencyKey());
+            meterRegistry.counter("tutorslot.notifications", "result", "failed").increment();
         }
     }
 }

@@ -2,9 +2,10 @@ package com.tutorslot.notification;
 
 import com.tutorslot.model.PendingNotification;
 import com.tutorslot.repository.PendingNotificationRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -25,10 +26,14 @@ class NotificationResendJobTest {
     @Mock
     private PendingNotificationRepository pendingNotificationRepository;
 
-    @InjectMocks
     private NotificationResendJob resendJob;
 
     private static final Long PENDING_ID = 1L;
+
+    @BeforeEach
+    void setUp() {
+        resendJob = new NotificationResendJob(gateway, pendingNotificationRepository, new SimpleMeterRegistry());
+    }
 
     private PendingNotification pending(int attempts) {
         return new PendingNotification(PENDING_ID, "BOOKED-7", "dan.student@sjsu.edu",

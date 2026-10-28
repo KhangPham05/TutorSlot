@@ -1,5 +1,6 @@
 package com.tutorslot.notification;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,13 +19,16 @@ public class HttpNotificationGateway implements NotificationGateway {
     private final RestClient restClient;
     private final String apiKey;
     private final int maxAttempts;
+    private final MeterRegistry meterRegistry;
 
     public HttpNotificationGateway(RestClient notificationRestClient,
                                     @Value("${notification.api-key:dev-key}") String apiKey,
-                                    @Value("${notification.max-attempts:3}") int maxAttempts) {
+                                    @Value("${notification.max-attempts:3}") int maxAttempts,
+                                    MeterRegistry meterRegistry) {
         this.restClient = notificationRestClient;
         this.apiKey = apiKey;
         this.maxAttempts = maxAttempts;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
@@ -52,6 +56,7 @@ public class HttpNotificationGateway implements NotificationGateway {
                 log.warn("Notification attempt {}/{} failed: key={} cause={}",
                         attempt, maxAttempts, request.idempotencyKey(), lastFailureReason);
                 if (attempt < maxAttempts) {
+                    meterRegistry.counter("tutorslot.notifications", "result", "retry").increment();
                     sleep(backoffMillis(attempt));
                 }
             }

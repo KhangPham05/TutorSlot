@@ -11,6 +11,7 @@ import com.tutorslot.repository.PendingNotificationRepository;
 import com.tutorslot.repository.ProviderRepository;
 import com.tutorslot.repository.SubjectRepository;
 import com.tutorslot.repository.UserRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -40,13 +41,14 @@ public class AppointmentNotificationListener {
     private final ProviderRepository providerRepository;
     private final UserRepository userRepository;
     private final SubjectRepository subjectRepository;
+    private final MeterRegistry meterRegistry;
 
     public AppointmentNotificationListener(NotificationGateway gateway,
                                             PendingNotificationRepository pendingNotificationRepository,
                                             AppointmentRepository appointmentRepository,
                                             AvailabilitySlotRepository availabilitySlotRepository,
                                             ProviderRepository providerRepository, UserRepository userRepository,
-                                            SubjectRepository subjectRepository) {
+                                            SubjectRepository subjectRepository, MeterRegistry meterRegistry) {
         this.gateway = gateway;
         this.pendingNotificationRepository = pendingNotificationRepository;
         this.appointmentRepository = appointmentRepository;
@@ -54,6 +56,7 @@ public class AppointmentNotificationListener {
         this.providerRepository = providerRepository;
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
+        this.meterRegistry = meterRegistry;
     }
 
     @Async("notificationExecutor")
@@ -85,9 +88,11 @@ public class AppointmentNotificationListener {
         NotificationResult result = gateway.send(request);
         if (result.success()) {
             log.info("Notification sent: key={} attempt={}", idempotencyKey, result.attempts());
+            meterRegistry.counter("tutorslot.notifications", "result", "sent").increment();
         } else {
             log.warn("Notification service unavailable, queued for resend: key={}", idempotencyKey);
             pendingNotificationRepository.save(idempotencyKey, request.recipient(), type.name(), message, appointmentId);
+            meterRegistry.counter("tutorslot.notifications", "result", "fallback").increment();
         }
     }
 }
