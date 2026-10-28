@@ -7,10 +7,11 @@ tutors' open time slots and book sessions; tutors (providers) publish availabili
 subjects they teach.
 
 This project is being built across 4 milestones. **This repository currently implements
-Milestone 1 and Milestone 2**: the database, a layered Spring Boot skeleton, login with roles,
-browsing/filtering/booking slots, cancelling appointments, and a provider dashboard for managing
-slots. Notifications, logging/metrics, and the AI agent features are later milestones and are not
-implemented yet.
+Milestones 1 through 3**: the database, a layered Spring Boot skeleton, login with roles,
+browsing/filtering/booking slots, cancelling appointments, a provider dashboard for managing
+slots, a mock external notification service behind a real HTTP distribution boundary, logging,
+a health endpoint, metrics, Docker, and a GitHub Actions CI pipeline. The AI agent / RAG features
+are Milestone 4 and are not implemented yet.
 
 ## Tech stack
 
@@ -22,6 +23,11 @@ implemented yet.
 - Data access: plain SQL via `JdbcTemplate` / `NamedParameterJdbcTemplate` — no ORM, no Spring
   Data JPA, no `@Entity`
 - PostgreSQL
+- Spring's `RestClient` for the notification HTTP client (timeouts, hand-written retry with
+  backoff — no Resilience4j or spring-retry, so it can be explained line by line)
+- `spring-boot-starter-actuator` + Micrometer for `/health` and `/metrics`
+- SLF4J logging to the console (`logging.level.com.tutorslot=INFO`)
+- Docker (multi-stage `Dockerfile`, `docker-compose.yml`) and GitHub Actions CI
 
 ## Architecture
 
@@ -44,12 +50,35 @@ Controller -> Service -> Repository -> PostgreSQL
   (`NotFoundException`, `ForbiddenException`, `SlotConflictException`) mapped centrally to HTTP
   status codes and their own error pages — never a stack trace, never a raw Spring message.
 
+### The notification distribution boundary
+
+`com.tutorslot.notification` (this app) and `com.tutorslot.mocknotification` (a stand-in for a
+real third-party notification service) talk only over HTTP + JSON, as if they were genuinely
+separate servers — they share zero Java classes, only an agreed JSON shape, exactly like a real
+external API integration. They happen to run inside the same process for this project, but
+nothing about the code depends on that: `NotificationGateway.send(NotificationRequest)` is a
+single coarse-grained call (one network round trip per notification, not a chatty
+create/set/send sequence), and the mock side has its own separate `IncomingNotification` DTO
+rather than importing the gateway's.
+
+Booking and cancelling publish an `ApplicationEventPublisher` event **inside** their existing
+transaction; `AppointmentNotificationListener` picks it up with
+`@TransactionalEventListener(phase = AFTER_COMMIT)` + `@Async`, so a notification is only ever
+attempted for a booking that actually committed, and the student's page never waits on it. If
+every retry fails, the notification is saved to `pending_notifications` instead of being lost,
+and a `@Scheduled` job (`NotificationResendJob`) keeps retrying it with the same idempotency key
+until it succeeds or hits 5 attempts. See "Notifications and the mock service" below for how to
+see this live.
+
 ## Folder structure
 
 ```
 TutorSlot/
 ├── pom.xml
 ├── mvnw, mvnw.cmd                     # Maven wrapper — build/run without a local Maven install
+├── Dockerfile, .dockerignore          # multi-stage build; see "Docker" below
+├── docker-compose.yml                 # app + db services
+├── .github/workflows/ci.yml           # tests + a docker build check, on every push
 ├── docs/er-diagram.svg                # ER diagram used in this README
 ├── src/
 │   ├── main/
@@ -63,13 +92,22 @@ TutorSlot/
 │   │   │   │                                  #   BookingService, BookingFacade, AppointmentService,
 │   │   │   │                                  #   ProviderDashboardService, CurrentUserService
 │   │   │   ├── repository/                    # UserRepository, ProviderRepository, SubjectRepository,
-│   │   │   │                                  #   AvailabilitySlotRepository, AppointmentRepository
-│   │   │   ├── model/                         # User, Provider, Subject, AvailabilitySlot, Appointment
+│   │   │   │                                  #   AvailabilitySlotRepository, AppointmentRepository,
+│   │   │   │                                  #   PendingNotificationRepository
+│   │   │   ├── model/                         # User, Provider, Subject, AvailabilitySlot, Appointment,
+│   │   │   │                                  #   PendingNotification
 │   │   │   ├── dto/                           # view-facing DTOs (one per page/concern)
 │   │   │   ├── exception/                     # NotFoundException, ForbiddenException, SlotConflictException
-│   │   │   └── web/                           # GlobalExceptionHandler (@ControllerAdvice)
+│   │   │   ├── web/                           # GlobalExceptionHandler (@ControllerAdvice)
+│   │   │   ├── notification/                  # the client side of the distribution boundary --
+│   │   │   │                                  #   NotificationGateway, HttpNotificationGateway,
+│   │   │   │                                  #   AppointmentNotificationListener, NotificationResendJob,
+│   │   │   │                                  #   NotificationAsyncConfig, NotificationClientConfig
+│   │   │   └── mocknotification/               # the mock external service side --
+│   │   │                                      #   MockNotificationController, InMemoryNotificationStore,
+│   │   │                                      #   NotificationModeHolder (UP/DOWN/SLOW)
 │   │   └── resources/
-│   │       ├── schema.sql                      # all 5 tables + constraints, rerunnable
+│   │       ├── schema.sql                      # all 6 tables + constraints, rerunnable
 │   │       ├── seed.sql                        # sample tutors, students, subjects, slots, bookings
 │   │       ├── application.properties
 │   │       └── templates/
@@ -81,20 +119,29 @@ TutorSlot/
 │   └── test/java/com/tutorslot/
 │       ├── repository/RepositorySmokeTest.java
 │       ├── dto/CreateSlotRequestTest.java      # Bean Validation on the slot-creation form
+│       ├── web/HealthEndpointTest.java         # GET /health over real HTTP, through Spring Security
+│       ├── notification/
+│       │   ├── HttpNotificationGatewayTest.java   # MockRestServiceServer — retry, backoff, 4xx vs 5xx
+│       │   └── NotificationResendJobTest.java
 │       └── service/
 │           ├── ServiceLayerSmokeTest.java
 │           ├── BookingServiceTest.java         # Mockito, no Spring context
-│           ├── BookingFacadeTest.java          # retry behavior
+│           ├── BookingFacadeTest.java          # retry behavior + the bookings/latency meters
 │           ├── AppointmentServiceCancelTest.java
 │           ├── ProviderDashboardServiceTest.java
-│           └── BookingConcurrencyTest.java     # the key test — see "Booking concurrency" below
+│           ├── BookingConcurrencyTest.java     # the key M2 test — see "Booking concurrency" below
+│           └── BookingWithNotificationDownTest.java   # the key M3 test — booking survives an
+│                                                       #   unreachable/slow notification service
 ```
 
 ## Database design (ER diagram)
 
-Five tables. `services` holds the subjects a tutor teaches; `availability_slots` are the
+Six tables. `services` holds the subjects a tutor teaches; `availability_slots` are the
 bookable time windows; a slot is "available" when it's in the future and has no active `BOOKED`
-appointment — that's computed at query time, not stored as a column.
+appointment — that's computed at query time, not stored as a column. The sixth,
+`pending_notifications`, has no foreign keys and isn't part of the booking domain itself — it's
+the durable queue behind the notification recovery job (see "Notifications and the mock service"
+below) and isn't shown in the diagram, which predates it.
 
 ![TutorSlot ER diagram](docs/er-diagram.svg)
 
@@ -175,6 +222,56 @@ exactly one `BOOKED` row) and proves the backstop in isolation (two direct JDBC 
 second throws `DuplicateKeyException`). It's been run 5 times in a row with a fresh database each
 time with no failures.
 
+## Notifications and the mock service
+
+Booking or cancelling sends the student a confirmation through
+`POST /mock-notify/notifications` — a separate controller inside this same app, standing in for
+a real third-party notification service. It requires an API key header (`X-Api-Key: dev-key` by
+default) and can be flipped between three modes at runtime to demo failure and recovery, with no
+restart needed (a restart would reset the database):
+
+| Mode | Behavior |
+|---|---|
+| `UP` (default) | Accepts and stores the notification, `202 Accepted` |
+| `DOWN` | Every request returns `503` |
+| `SLOW` | Sleeps 5 seconds before responding — longer than the client's 1500ms read timeout |
+
+```bash
+# flip the mock to DOWN (or SLOW, or UP)
+curl -X POST http://localhost:8080/mock-notify/admin/mode/DOWN -H "X-Api-Key: dev-key"
+
+# book a slot in the browser or with curl while it's down -- the booking still succeeds; the
+# notification lands in the pending_notifications table instead of being lost
+
+# flip it back; within notification.resend-interval-ms (30s by default) the queued
+# notification gets delivered
+curl -X POST http://localhost:8080/mock-notify/admin/mode/UP -H "X-Api-Key: dev-key"
+
+# see everything the mock has received
+curl http://localhost:8080/mock-notify/notifications -H "X-Api-Key: dev-key"
+```
+
+Every notification carries an idempotency key (`BOOKED-{appointmentId}` /
+`CANCELLED-{appointmentId}`), so retrying — whether the gateway's own 3 attempts, or a later
+resend-job cycle — can never deliver the same notification twice; the mock reports `DUPLICATE`
+for a key it's already stored.
+
+## Health and metrics
+
+```bash
+curl http://localhost:8080/health                                       # {"status":"UP",...,"db":{...}}
+curl http://localhost:8080/metrics/tutorslot.bookings                   # outcome=success|conflict|error
+curl "http://localhost:8080/metrics/tutorslot.bookings?tag=outcome:success"
+curl http://localhost:8080/metrics/tutorslot.booking.latency            # average and max booking time
+curl http://localhost:8080/metrics/tutorslot.notifications              # result=sent|retry|fallback|failed
+```
+
+`/health` only reflects the database connection, deliberately — the notification service going
+down is visible through the `tutorslot.notifications` metric and the console logs instead, not
+through `/health`. If the notification outage also flipped `/health` to DOWN, a container
+orchestrator watching that endpoint would restart a perfectly healthy app over a problem
+restarting it can't fix.
+
 ## How to run
 
 ### Prerequisites
@@ -191,29 +288,54 @@ This automatically (re)creates the schema and loads sample data on every startup
 `spring.sql.init` — no separate migration step needed. Then visit `http://localhost:8080/` and
 log in with one of the demo accounts above.
 
+### Run with Docker
+```bash
+docker compose up --build
+```
+Starts two containers: `db` (`postgres:16`, a named volume, not published on the host — port
+5432 is likely already your own local Postgres) and `app` (built from the `Dockerfile`, published
+on `8080:8080`). The mock notification service runs inside the same `app` container, which is why
+its base URL is `http://localhost:8080/mock-notify` even in Docker, not another service name.
+
+```bash
+docker compose stop db     # /health now returns 503
+docker compose start db    # back to 200 UP within a few seconds
+docker compose down -v     # stop everything and remove the volume
+```
+
 ### Run the tests
 ```bash
 ./mvnw test
 ```
-Runs both kinds of tests in the project:
+Runs every kind of test in the project:
 - **Unit tests** (`BookingServiceTest`, `BookingFacadeTest`, `AppointmentServiceCancelTest`,
-  `ProviderDashboardServiceTest`, `CreateSlotRequestTest`) — JUnit 5 + Mockito, no Spring context,
-  no database.
-- **Integration tests** (`RepositorySmokeTest`, `ServiceLayerSmokeTest`, `BookingConcurrencyTest`)
-  — `@SpringBootTest` against the real local PostgreSQL; `spring.sql.init` reloads `schema.sql` +
-  `seed.sql` before they run, so they're always checked against real, known data.
+  `ProviderDashboardServiceTest`, `CreateSlotRequestTest`, `HttpNotificationGatewayTest`,
+  `NotificationResendJobTest`) — JUnit 5 + Mockito (or `MockRestServiceServer` for the gateway),
+  no Spring context, no database.
+- **Integration tests** (`RepositorySmokeTest`, `ServiceLayerSmokeTest`, `BookingConcurrencyTest`,
+  `BookingWithNotificationDownTest`, `HealthEndpointTest`) — `@SpringBootTest` against the real
+  local PostgreSQL; `spring.sql.init` reloads `schema.sql` + `seed.sql` before they run, so
+  they're always checked against real, known data.
+
+CI (`.github/workflows/ci.yml`) runs the same `./mvnw -B verify` against a `postgres:16` service
+container on every push, then a separate job confirms the Docker image still builds.
 
 ### Build a jar
 ```bash
 ./mvnw clean package
 ```
 
-## Current scope (Milestone 1 + 2)
+## Current scope (Milestones 1 through 3)
 
 Implemented: the database schema, the full layered skeleton, login with roles, browsing/
 filtering/paginating slots, booking with concurrency-safe locking, cancelling, a provider
-dashboard for creating/removing slots, and full validation/error handling (400/403/404/409, no
-stack traces ever).
+dashboard for creating/removing slots, full validation/error handling (400/403/404/409, no stack
+traces ever), a mock external notification service behind a real HTTP distribution boundary with
+retry/timeout/fallback and a recovery job, structured logging, a `/health` endpoint, Micrometer
+metrics, Docker, and CI.
 
-Not yet implemented (later milestones): a mock external notification service, logging/health
-endpoint/metrics, and the AI booking agent / RAG Q&A.
+Known limitation (noted here for the report, not a bug): `schema.sql` resets the database on
+every app restart, so the notification queue survives an *outage of the notification service*
+but not a restart of the app itself. A production version would stop resetting the schema.
+
+Not yet implemented: the AI booking agent / RAG Q&A (Milestone 4).
