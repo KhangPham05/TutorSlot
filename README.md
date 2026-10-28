@@ -1,5 +1,7 @@
 # TutorSlot
 
+[![CI](https://github.com/KhangPham05/TutorSlot/actions/workflows/ci.yml/badge.svg)](https://github.com/KhangPham05/TutorSlot/actions/workflows/ci.yml)
+
 A tutoring appointment booking system built for SJSU CMPE 172. Students (customers) browse
 tutors' open time slots and book sessions; tutors (providers) publish availability for the
 subjects they teach.
