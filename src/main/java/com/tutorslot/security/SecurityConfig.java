@@ -1,5 +1,7 @@
 package com.tutorslot.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -7,10 +9,13 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -39,11 +44,19 @@ public class SecurityConfig {
                 // CSRF stays on everywhere else (Spring Security's default) -- only the mock
                 // service's own endpoints are exempt, since a service-to-service caller has no
                 // CSRF token to send.
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/mock-notify/**"));
-        // A logged-in user hitting a page they don't have the role for throws
-        // AccessDeniedException, not an authentication redirect -- Spring Boot's default error
-        // handling renders templates/error/403.html for that, so no custom AccessDeniedHandler is
-        // needed here.
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/mock-notify/**"))
+                // A logged-in user hitting a page they don't have the role for throws
+                // AccessDeniedException here, in the filter chain -- it never reaches
+                // GlobalExceptionHandler, which only sees exceptions thrown from inside a
+                // controller (our own ForbiddenException, for ownership checks). This is the only
+                // place that role-gate rejection can be logged, so it gets its own small handler
+                // that logs, then renders templates/error/403.html exactly as the default would.
+                .exceptionHandling(ex -> ex.accessDeniedHandler((request, response, accessDeniedException) -> {
+                    log.warn("Access denied: user={} path={}",
+                            request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous",
+                            request.getRequestURI());
+                    new AccessDeniedHandlerImpl().handle(request, response, accessDeniedException);
+                }));
         return http.build();
     }
 }

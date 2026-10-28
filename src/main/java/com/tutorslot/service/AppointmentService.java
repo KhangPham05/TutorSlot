@@ -17,6 +17,8 @@ import com.tutorslot.repository.AvailabilitySlotRepository;
 import com.tutorslot.repository.ProviderRepository;
 import com.tutorslot.repository.SubjectRepository;
 import com.tutorslot.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class AppointmentService {
+
+    private static final Logger log = LoggerFactory.getLogger(AppointmentService.class);
 
     private final AppointmentRepository appointmentRepository;
     private final AvailabilitySlotRepository availabilitySlotRepository;
@@ -106,6 +110,7 @@ public class AppointmentService {
     public void cancel(Long appointmentId, Long customerId) {
         int updated = appointmentRepository.cancel(appointmentId, customerId);
         if (updated > 0) {
+            log.info("Appointment cancelled: appointment={} customer={}", appointmentId, customerId);
             eventPublisher.publishEvent(new AppointmentCancelledEvent(appointmentId));
             return;
         }
@@ -116,6 +121,8 @@ public class AppointmentService {
         if (!appointment.customerId().equals(customerId)) {
             throw new ForbiddenException("This appointment doesn't belong to you.");
         }
+        log.warn("Booking conflict: appointment={} customer={} reason=already cancelled or completed",
+                appointmentId, customerId);
         throw new SlotConflictException("This appointment can't be cancelled anymore.");
     }
 

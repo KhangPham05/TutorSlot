@@ -11,6 +11,8 @@ import com.tutorslot.model.Subject;
 import com.tutorslot.repository.AppointmentRepository;
 import com.tutorslot.repository.AvailabilitySlotRepository;
 import com.tutorslot.repository.SubjectRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ProviderDashboardService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProviderDashboardService.class);
 
     private final AvailabilitySlotRepository availabilitySlotRepository;
     private final AppointmentRepository appointmentRepository;
@@ -61,11 +65,16 @@ public class ProviderDashboardService {
         }
 
         LocalDateTime endDateTime = startDateTime.plusMinutes(subject.durationMinutes());
+        Long slotId;
         try {
-            return availabilitySlotRepository.insert(providerId, serviceId, startDateTime, endDateTime);
+            slotId = availabilitySlotRepository.insert(providerId, serviceId, startDateTime, endDateTime);
         } catch (DuplicateKeyException e) {
+            log.warn("Booking conflict: provider={} start={} reason=slot already exists at that time",
+                    providerId, startDateTime);
             throw new SlotConflictException("You already have a slot at that time.");
         }
+        log.info("Slot created: slot={} provider={} start={}", slotId, providerId, startDateTime);
+        return slotId;
     }
 
     public void removeSlot(Long slotId, Long providerId) {
@@ -75,8 +84,10 @@ public class ProviderDashboardService {
             throw new ForbiddenException("This slot doesn't belong to you.");
         }
         if (appointmentRepository.hasAnyAppointmentForSlot(slotId)) {
+            log.warn("Booking conflict: slot={} provider={} reason=slot has booking history", slotId, providerId);
             throw new SlotConflictException("This slot has booking history and can't be removed.");
         }
         availabilitySlotRepository.delete(slotId, providerId);
+        log.info("Slot removed: slot={} provider={}", slotId, providerId);
     }
 }

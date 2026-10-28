@@ -6,6 +6,8 @@ import com.tutorslot.model.AvailabilitySlot;
 import com.tutorslot.notification.AppointmentBookedEvent;
 import com.tutorslot.repository.AppointmentRepository;
 import com.tutorslot.repository.AvailabilitySlotRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,8 @@ import java.time.LocalDateTime;
 
 @Service
 public class BookingService {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingService.class);
 
     private final AvailabilitySlotRepository availabilitySlotRepository;
     private final AppointmentRepository appointmentRepository;
@@ -41,9 +45,11 @@ public class BookingService {
                 .orElseThrow(() -> new NotFoundException("No slot with id " + slotId));
 
         if (!slot.startTime().isAfter(LocalDateTime.now())) {
+            log.warn("Booking conflict: slot={} customer={} reason=slot in the past", slotId, customerId);
             throw new SlotConflictException("This slot is in the past.");
         }
         if (appointmentRepository.hasActiveBooking(slotId)) {
+            log.warn("Booking conflict: slot={} customer={} reason=already booked", slotId, customerId);
             throw new SlotConflictException("This slot is already booked.");
         }
 
@@ -52,8 +58,11 @@ public class BookingService {
             appointmentId = appointmentRepository.insertBooked(slotId, customerId, notes);
         } catch (DuplicateKeyException e) {
             // Backstop: uq_one_active_booking_per_slot caught a race the checks above missed.
+            log.warn("Booking conflict: slot={} customer={} reason=already booked", slotId, customerId);
             throw new SlotConflictException("This slot is already booked.");
         }
+
+        log.info("Booking created: appointment={} slot={} customer={}", appointmentId, slotId, customerId);
 
         // Published inside this same transaction, so the AFTER_COMMIT listener only ever fires
         // for a booking that actually committed -- if we threw above instead, this line never

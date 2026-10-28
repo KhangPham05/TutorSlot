@@ -1,11 +1,14 @@
 package com.tutorslot.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 @Service
 public class BookingFacade {
 
+    private static final Logger log = LoggerFactory.getLogger(BookingFacade.class);
     private static final int MAX_ATTEMPTS = 3;
     private static final long RETRY_DELAY_MS = 50;
 
@@ -31,6 +34,7 @@ public class BookingFacade {
                 return bookingService.book(slotId, customerId, notes);
             } catch (PessimisticLockingFailureException e) {
                 lastLockFailure = e;
+                log.warn("Booking lock failure, retrying: slot={} attempt={}/{}", slotId, attempt, MAX_ATTEMPTS);
                 sleep(RETRY_DELAY_MS);
             }
         }
