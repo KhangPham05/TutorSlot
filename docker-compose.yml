@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: tutorslot_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Not published: port 5432 on this machine is already the local dev Postgres. Containers
+    # reach this one over the compose network as "db:5432" regardless.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tutorslot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/tutorslot_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      # The mock notification service runs inside this same container (same app, same JVM), so
+      # localhost is correct here, not "app".
+      NOTIFICATION_BASE_URL: http://localhost:8080/mock-notify
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  db-data:
