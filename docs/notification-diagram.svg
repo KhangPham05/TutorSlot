@@ -1,0 +1,52 @@
+<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Booking or cancel publishes an event after commit; the listener calls the mock notification service over HTTP; failed attempts queue in pending_notifications, which a resend job retries against the same mock service every 30 seconds">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2c3e50"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, Helvetica, Arial, sans-serif; fill: #1a2330; }
+    .box { fill: #eef2f7; stroke: #2c3e50; stroke-width: 1.5; }
+    .title { font-size: 14px; font-weight: 600; text-anchor: middle; }
+    .sub { font-size: 11px; text-anchor: middle; fill: #5b6b7c; }
+    .arrow { stroke: #2c3e50; stroke-width: 1.5; marker-end: url(#arrow2); fill: none; }
+    .dashed { stroke: #2c3e50; stroke-width: 1.5; stroke-dasharray: 5 4; marker-end: url(#arrow2); fill: none; }
+    .edgelabel { font-size: 11px; text-anchor: middle; fill: #2563eb; }
+  </style>
+
+  <!-- Row 1 -->
+  <rect class="box" x="10" y="30" width="200" height="70" rx="8"/>
+  <text class="title" x="110" y="62">Booking / Cancel</text>
+  <text class="sub" x="110" y="80">commits first</text>
+
+  <rect class="box" x="270" y="30" width="240" height="70" rx="8"/>
+  <text class="title" x="390" y="70">AppointmentNotification</text>
+  <text class="title" x="390" y="86">Listener</text>
+
+  <rect class="box" x="570" y="30" width="200" height="70" rx="8"/>
+  <text class="title" x="670" y="62">Mock notification</text>
+  <text class="sub" x="670" y="80">UP / DOWN / SLOW</text>
+
+  <!-- Row 2 -->
+  <path class="box" d="M270,220 A120,10 0 0,0 510,220 L510,270 A120,10 0 0,1 270,270 Z"/>
+  <path d="M270,220 A120,10 0 0,0 510,220" fill="none" stroke="#2c3e50" stroke-width="1.5"/>
+  <text class="title" x="390" y="252">pending_notifications</text>
+
+  <rect class="box" x="570" y="210" width="200" height="70" rx="8"/>
+  <text class="title" x="670" y="250">NotificationResendJob</text>
+
+  <!-- Arrows -->
+  <line class="arrow" x1="212" y1="65" x2="268" y2="65"/>
+  <text class="edgelabel" x="240" y="20">event, AFTER_COMMIT</text>
+
+  <line class="arrow" x1="512" y1="65" x2="568" y2="65"/>
+  <text class="edgelabel" x="540" y="20">HTTP + idempotency key</text>
+
+  <line class="dashed" x1="390" y1="102" x2="390" y2="218"/>
+  <text class="edgelabel" x="470" y="160">retries exhausted</text>
+
+  <line class="arrow" x1="512" y1="245" x2="568" y2="245"/>
+
+  <line class="arrow" x1="670" y1="208" x2="670" y2="102"/>
+  <text class="edgelabel" x="690" y="160">same key, every 30s</text>
+</svg>

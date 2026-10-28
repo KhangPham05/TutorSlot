@@ -1,0 +1,31 @@
+<svg viewBox="0 0 820 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Controller calls Service, Service calls Repository, Repository queries PostgreSQL">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2c3e50"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, Helvetica, Arial, sans-serif; fill: #1a2330; }
+    .box { fill: #eef2f7; stroke: #2c3e50; stroke-width: 1.5; }
+    .label { font-size: 15px; font-weight: 600; text-anchor: middle; }
+    .arrow { stroke: #2c3e50; stroke-width: 1.5; marker-end: url(#arrow); fill: none; }
+  </style>
+
+  <rect class="box" x="10" y="45" width="150" height="60" rx="8"/>
+  <text class="label" x="85" y="80">Controller</text>
+
+  <rect class="box" x="230" y="45" width="150" height="60" rx="8"/>
+  <text class="label" x="305" y="80">Service</text>
+
+  <rect class="box" x="450" y="45" width="150" height="60" rx="8"/>
+  <text class="label" x="525" y="80">Repository</text>
+
+  <!-- PostgreSQL cylinder -->
+  <path class="box" d="M670,55 A70,10 0 0,0 810,55 L810,95 A70,10 0 0,1 670,95 Z"/>
+  <path d="M670,55 A70,10 0 0,0 810,55" fill="none" stroke="#2c3e50" stroke-width="1.5"/>
+  <text class="label" x="740" y="80">PostgreSQL</text>
+
+  <line class="arrow" x1="162" y1="75" x2="228" y2="75"/>
+  <line class="arrow" x1="382" y1="75" x2="448" y2="75"/>
+  <line class="arrow" x1="602" y1="75" x2="668" y2="75"/>
+</svg>

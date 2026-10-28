@@ -55,10 +55,8 @@ Two services, `db` + `app` — see [Docker](#docker) below for the stop/start fa
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    C[Controller] --> S[Service] --> R[Repository] --> DB[(PostgreSQL)]
-```
+![Controller to Service to Repository to PostgreSQL](docs/architecture-diagram.svg)
+
 One direction only. Controllers touch HTTP and Thymeleaf views, never SQL or business rules.
 Services hold the business rules — including the booking transaction — and shape repository
 models into view-facing DTOs. Repositories are one class per table, plain `JdbcTemplate` /
@@ -69,14 +67,8 @@ stack trace never reaches the browser.
 
 Notifications live behind their own boundary:
 
-```mermaid
-flowchart LR
-    B["Booking / Cancel\n(commits first)"] -- event, AFTER_COMMIT --> L[AppointmentNotificationListener]
-    L -- HTTP + idempotency key --> M["Mock notification service\n(UP / DOWN / SLOW)"]
-    L -. retries exhausted .-> Q[(pending_notifications)]
-    J[NotificationResendJob] -- same key, every 30s --> M
-    Q --> J
-```
+![Booking commits, then notifies async; failed attempts queue and get resent](docs/notification-diagram.svg)
+
 `com.tutorslot.notification` (this app) and `com.tutorslot.mocknotification` (standing in for a
 real third party) share **zero Java classes** — only an agreed JSON shape, like any real
 external API integration. Booking and cancelling publish an event *inside* their own
