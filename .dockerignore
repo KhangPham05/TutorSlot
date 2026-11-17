@@ -4,3 +4,6 @@ target/
 *.iml
 .vscode/
 .DS_Store
+
+# Local secrets (GEMINI_API_KEY) must never be baked into the image.
+.env

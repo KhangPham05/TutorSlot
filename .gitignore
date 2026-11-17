@@ -12,3 +12,6 @@ target/
 
 # Logs
 *.log
+
+# Local secrets (GEMINI_API_KEY). Never commit.
+.env
