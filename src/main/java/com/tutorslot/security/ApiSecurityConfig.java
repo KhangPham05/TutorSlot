@@ -24,6 +24,8 @@ public class ApiSecurityConfig {
                 .securityMatcher("/api/**")
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        // Browsing open slots needs no login, like the web /slots page.
+                        .requestMatchers(HttpMethod.GET, "/api/slots", "/api/slots/*").permitAll()
                         .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/provider/**").hasRole("PROVIDER")
                         .anyRequest().authenticated())

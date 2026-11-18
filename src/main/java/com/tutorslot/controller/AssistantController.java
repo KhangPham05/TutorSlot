@@ -1,6 +1,7 @@
 package com.tutorslot.controller;
 
 import com.tutorslot.ai.AssistantService;
+import com.tutorslot.ai.AssistantTurns;
 import com.tutorslot.dto.ChatLineDto;
 import com.tutorslot.model.User;
 import com.tutorslot.service.CurrentUserService;
@@ -16,9 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Controller
 @RequestMapping("/customer/assistant")
@@ -28,15 +26,14 @@ public class AssistantController {
 
     private final AssistantService assistantService;
     private final CurrentUserService currentUserService;
+    // The turn counter behind the confirm rule, shared with the API (see AssistantTurns).
+    private final AssistantTurns assistantTurns;
 
-    // The turn counter behind the confirm rule (see AssistantTools.confirmPendingAction): +1 for
-    // every message a student sends. Kept per user, not per HTTP session, and never reset, so it
-    // only ever goes up -- even after "New conversation" or logging in again.
-    private final Map<Long, AtomicLong> turnsByUserId = new ConcurrentHashMap<>();
-
-    public AssistantController(AssistantService assistantService, CurrentUserService currentUserService) {
+    public AssistantController(AssistantService assistantService, CurrentUserService currentUserService,
+                               AssistantTurns assistantTurns) {
         this.assistantService = assistantService;
         this.currentUserService = currentUserService;
+        this.assistantTurns = assistantTurns;
     }
 
     @GetMapping
@@ -52,7 +49,7 @@ public class AssistantController {
         if (StringUtils.hasText(message)) {
             // The customer id comes from the login session, never from the form or the AI.
             User customer = currentUserService.requireByEmail(authentication.getName());
-            long turn = turnsByUserId.computeIfAbsent(customer.userId(), id -> new AtomicLong()).incrementAndGet();
+            long turn = assistantTurns.next(customer.userId());
             String reply = assistantService.chat(customer.userId(), turn, message.trim());
 
             List<ChatLineDto> transcript = transcript(session);
