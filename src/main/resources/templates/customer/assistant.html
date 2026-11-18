@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Assistant - TutorSlot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .line { padding: 8px 12px; border-radius: 4px; margin-bottom: 8px; white-space: pre-wrap; }
+        .you { background: #f0f0f0; }
+        .assistant { background: #e2f0fd; color: #1f4a7a; }
+        .message { padding: 8px 12px; border-radius: 4px; background: #fdecea; color: #7a1f1f; }
+        textarea { width: 100%; box-sizing: border-box; }
+        .examples { color: #555; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<h1>Assistant</h1>
+
+<p class="message" th:unless="${assistantEnabled}">The assistant is not configured.</p>
+
+<div th:if="${assistantEnabled}">
+    <p>Ask me to find a slot, book or cancel a session, or answer a question about TutorSlot's policies.
+        I always show you the details and ask before booking or cancelling anything.</p>
+
+    <div th:each="line : ${transcript}"
+         th:class="${line.speaker == 'You'} ? 'line you' : 'line assistant'">
+        <strong th:text="${line.speaker} + ':'">You:</strong>
+        <span th:text="${line.text}">Message</span>
+    </div>
+
+    <form th:action="@{/customer/assistant}" method="post">
+        <textarea name="message" rows="3" maxlength="1000" required
+                  placeholder="Type your message"></textarea>
+        <button type="submit">Send</button>
+    </form>
+
+    <form th:action="@{/customer/assistant/reset}" method="post" style="margin-top: 8px;">
+        <button type="submit">New conversation</button>
+    </form>
+
+    <div class="examples">
+        <p>Examples:</p>
+        <ul>
+            <li>What's your cancellation policy?</li>
+            <li>Find the earliest Calculus slot this week and book it</li>
+            <li>What sessions do I have coming up?</li>
+            <li>Cancel my Calculus session</li>
+        </ul>
+    </div>
+</div>
+</body>
+</html>

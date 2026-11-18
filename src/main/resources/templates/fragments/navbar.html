@@ -14,6 +14,7 @@
     <span sec:authorize="isAuthenticated()">
         &nbsp;|&nbsp;
         <a sec:authorize="hasRole('CUSTOMER')" th:href="@{/customer/appointments}">My appointments</a>
+        <span sec:authorize="hasRole('CUSTOMER')">&nbsp;|&nbsp;<a th:href="@{/customer/assistant}">Assistant</a></span>
         <a sec:authorize="hasRole('PROVIDER')" th:href="@{/provider/dashboard}">Dashboard</a>
         &nbsp;|&nbsp;
         Logged in as <span sec:authentication="name">user@example.com</span>

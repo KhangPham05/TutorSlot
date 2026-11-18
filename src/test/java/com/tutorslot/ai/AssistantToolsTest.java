@@ -85,14 +85,20 @@ class AssistantToolsTest {
     }
 
     @Test
-    void aSlotConflictBecomesAFailureResultNotAnException() {
+    void aSlotConflictBecomesAFailureResultThatListsTheNextOpenSlots() {
         proposeSlotOnTurn(1);
         when(bookingFacade.book(SLOT_ID, CUSTOMER_ID, null))
                 .thenThrow(new SlotConflictException("This slot is already booked."));
+        SlotDto nextCalculus = new SlotDto(8L, "Alice Nguyen", "Calculus I", START.plusDays(2), START.plusDays(2).plusHours(1));
+        SlotDto physics = new SlotDto(9L, "Carla Osei", "Physics I", START.plusDays(1), START.plusDays(1).plusHours(1));
+        when(availabilitySlotService.getAvailableSlotsPage(null, null, null, 1))
+                .thenReturn(page(List.of(physics, nextCalculus), 1, 1));
 
         String result = tools.confirmPendingAction(turn(2));
 
-        assertThat(result).isEqualTo("FAILED: This slot is already booked.");
+        assertThat(result).startsWith("FAILED: This slot is already booked. Offer the student these next open Calculus I slots:")
+                .contains("slot 8: Calculus I with Alice Nguyen, Thu Nov 19, 2026 1:00 PM to 2:00 PM")
+                .doesNotContain("Physics");
         assertThat(pendingActionStore.find(CUSTOMER_ID)).isEmpty();
     }
 

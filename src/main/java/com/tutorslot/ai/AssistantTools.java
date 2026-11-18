@@ -93,29 +93,11 @@ public class AssistantTools {
                 return "FAILED: dates must look like 2026-11-17";
             }
 
-            // Reuses the same paged query as the Browse slots page (no new SQL) and filters in Java.
-            List<SlotDto> matches = new ArrayList<>();
-            for (int page = 1; page <= MAX_PAGES; page++) {
-                SlotsPageDto slotsPage = availabilitySlotService.getAvailableSlotsPage(null, null, null, page);
-                for (SlotDto slot : slotsPage.slots()) {
-                    LocalDate day = slot.startTime().toLocalDate();
-                    if (containsIgnoreCase(slot.tutorName(), tutorName)
-                            && containsIgnoreCase(slot.subjectName(), subjectName)
-                            && (from == null || !day.isBefore(from))
-                            && (to == null || !day.isAfter(to))) {
-                        matches.add(slot);
-                    }
-                }
-                if (page >= slotsPage.totalPages()) {
-                    break;
-                }
-            }
-
+            List<SlotDto> matches = openSlots(tutorName, subjectName, from, to);
             if (matches.isEmpty()) {
                 return "No open slots match.";
             }
             return matches.stream()
-                    .sorted(Comparator.comparing(SlotDto::startTime))
                     .map(AssistantTools::describeSlot)
                     .collect(Collectors.joining("\n"));
         });
@@ -205,9 +187,15 @@ public class AssistantTools {
             if (action.type() == PendingAction.Type.BOOK) {
                 // Same path as the Book button: BookingFacade's retry loop, then BookingService's
                 // locked, transactional check. Notes stay null; the assistant never collects any.
-                Long appointmentId = bookingFacade.book(action.targetId(), customerId, null);
-                return "BOOKED: appointment " + appointmentId + " for slot " + action.targetId()
-                        + ". A confirmation email is on its way.";
+                try {
+                    Long appointmentId = bookingFacade.book(action.targetId(), customerId, null);
+                    return "BOOKED: appointment " + appointmentId + " for slot " + action.targetId()
+                            + ". A confirmation email is on its way.";
+                } catch (SlotConflictException e) {
+                    // Someone else booked it after it was proposed. The result lists the next open
+                    // slots for the same subject, so the assistant can offer them right away.
+                    return "FAILED: " + e.getMessage() + " " + alternativesTo(action.targetId());
+                }
             }
             appointmentService.cancel(action.targetId(), customerId);
             return "CANCELLED: appointment " + action.targetId() + ". A cancellation email is on its way.";
@@ -240,6 +228,38 @@ public class AssistantTools {
             log.error("AI tool failed unexpectedly: tool={} user={}", toolName, customerId, e);
             return "FAILED: something went wrong on our side. Please try again later.";
         }
+    }
+
+    // Reuses the same paged query as the Browse slots page (no new SQL) and filters in Java.
+    private List<SlotDto> openSlots(String tutorName, String subjectName, LocalDate from, LocalDate to) {
+        List<SlotDto> matches = new ArrayList<>();
+        for (int page = 1; page <= MAX_PAGES; page++) {
+            SlotsPageDto slotsPage = availabilitySlotService.getAvailableSlotsPage(null, null, null, page);
+            for (SlotDto slot : slotsPage.slots()) {
+                LocalDate day = slot.startTime().toLocalDate();
+                if (containsIgnoreCase(slot.tutorName(), tutorName)
+                        && containsIgnoreCase(slot.subjectName(), subjectName)
+                        && (from == null || !day.isBefore(from))
+                        && (to == null || !day.isAfter(to))) {
+                    matches.add(slot);
+                }
+            }
+            if (page >= slotsPage.totalPages()) {
+                break;
+            }
+        }
+        matches.sort(Comparator.comparing(SlotDto::startTime));
+        return matches;
+    }
+
+    private String alternativesTo(Long takenSlotId) {
+        String subject = availabilitySlotService.findSlotSummary(takenSlotId).subjectName();
+        List<SlotDto> next = openSlots(null, subject, null, null).stream().limit(3).toList();
+        if (next.isEmpty()) {
+            return "There are no other open " + subject + " slots.";
+        }
+        return "Offer the student these next open " + subject + " slots:\n"
+                + next.stream().map(AssistantTools::describeSlot).collect(Collectors.joining("\n"));
     }
 
     private static Long customerId(ToolContext toolContext) {
