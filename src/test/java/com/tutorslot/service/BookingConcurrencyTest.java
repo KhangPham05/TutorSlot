@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // and all @SpringBootTest classes share one cached Spring context (and DB state) within a single
 // `mvn test` run. Without this, whichever of those runs after this one (JUnit/Surefire class
 // order isn't guaranteed) would see a slot missing from the available count and fail. Marking the
-// context dirty forces a fresh one -- and a fresh schema.sql + seed.sql reload -- for whatever
-// test needs a Spring context next.
+// context dirty forces a fresh one -- and a freshly rebuilt test database (see
+// TestDatabaseConfig) -- for whatever test needs a Spring context next.
 @SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class BookingConcurrencyTest {

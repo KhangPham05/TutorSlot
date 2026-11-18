@@ -1,18 +1,13 @@
--- TutorSlot schema (Milestone 1)
--- Rerunnable: drops all tables (reverse dependency order) before recreating them.
-
-DROP TABLE IF EXISTS pending_notifications CASCADE;
-DROP TABLE IF EXISTS appointments CASCADE;
-DROP TABLE IF EXISTS availability_slots CASCADE;
-DROP TABLE IF EXISTS services CASCADE;
-DROP TABLE IF EXISTS providers CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
+-- TutorSlot schema, migration 1.
+-- Flyway runs this file once, on an empty database, and records it in flyway_schema_history, so a
+-- restart never drops or recreates anything. Never edit a migration after it has run (Flyway
+-- checks each file's checksum at startup); change the schema with a new V3__... file instead.
 
 -- users: every person who can log in, either a customer (student) or a provider (tutor).
 CREATE TABLE users (
     user_id        BIGSERIAL PRIMARY KEY,
     email          VARCHAR(255) NOT NULL,
-    password_hash  VARCHAR(255) NOT NULL, -- BCrypt hash (see seed.sql)
+    password_hash  VARCHAR(255) NOT NULL, -- BCrypt hash (see V2__seed_data.sql)
     full_name      VARCHAR(100) NOT NULL,
     role           VARCHAR(20)  NOT NULL,
     created_at     TIMESTAMP    NOT NULL DEFAULT NOW(),

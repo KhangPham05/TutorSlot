@@ -42,7 +42,8 @@ default — override with the `DB_USERNAME`/`DB_PASSWORD` env vars). No Postgres
 ```bash
 ./mvnw spring-boot:run
 ```
-Recreates the schema and loads sample data on every startup — nothing to configure first.
+On the first start, Flyway creates the tables and loads sample data. After that your data is
+kept across restarts. Nothing to configure first.
 Visit **http://localhost:8080** and log in with a seeded account:
 
 | Role | Email | Password |
@@ -50,7 +51,7 @@ Visit **http://localhost:8080** and log in with a seeded account:
 | Customer | `dan.student@sjsu.edu` | `password123` |
 | Provider | `alice.tutor@sjsu.edu` | `password123` |
 
-(8 seeded users total — full roster in `src/main/resources/seed.sql`. Every account shares the
+(8 seeded users total — full roster in `src/main/resources/db/migration/V2__seed_data.sql`. Every account shares the
 same password.)
 
 **Turn on the AI agents (optional).** Get a free Gemini API key (see
@@ -73,13 +74,13 @@ Two services, `db` + `app` — see [Docker](#docker) below for the stop/start fa
 
 | | |
 |---|---|
-| **Stack** | Java 21 · Spring Boot 3.5.3 · PostgreSQL · plain SQL via `JdbcTemplate` (no ORM) |
+| **Stack** | Java 21 · Spring Boot 3.5.3 · PostgreSQL · plain SQL via `JdbcTemplate` (no ORM) · Flyway migrations |
 | **Auth** | Spring Security, session-based, two roles (`CUSTOMER` / `PROVIDER`), CSRF on |
 | **Concurrency** | Pessimistic row locks + a partial unique index as the real backstop — see below |
 | **Integration** | A real HTTP boundary to a mock notification service — timeouts, retry, idempotent fallback |
 | **Ops** | `/health`, Micrometer metrics, structured logs, Docker, GitHub Actions CI |
 | **AI** | Spring AI 1.1.8 · Gemini free tier · tool calling, chat memory, a scheduled agent, RAG over a knowledge file |
-| **Tests** | 64 tests — unit (Mockito) + integration (`@SpringBootTest`, real Postgres) — 3 clean runs in a row, none calls Gemini |
+| **Tests** | 65 tests — unit (Mockito) + integration (`@SpringBootTest`, real Postgres) — 3 clean runs in a row, none calls Gemini |
 
 ## How the AI works
 
@@ -281,7 +282,7 @@ in the database itself: a partial unique index, `UNIQUE (slot_id) WHERE status =
 ![TutorSlot ER diagram](docs/er-diagram.svg)
 
 Only keys and the fields that matter for the flow are shown (`role`, `status`, slot timing) —
-every constraint is in `schema.sql`. The sixth table, `pending_notifications`, has no foreign
+every constraint is in `db/migration/V1__create_schema.sql`. The sixth table, `pending_notifications`, has no foreign
 keys and isn't part of the booking domain — it's the durable queue behind the notification
 recovery job, so it isn't pictured. Also not pictured: `appointments.reminder_sent_at`, set once
 the reminder agent has handled an appointment.
@@ -358,10 +359,13 @@ service runs inside the same `app` container, so its base URL stays `localhost:8
 another service name. Compose passes `GEMINI_API_KEY` from the `.env` file next to
 `docker-compose.yml`; with no `.env`, the app starts with the AI features turned off.
 
+The database lives in the named volume, so bookings survive `docker compose restart app` and a
+full `docker compose down` and `up`. Only `down -v` deletes it.
+
 ```bash
 docker compose stop db     # /health now returns 503
 docker compose start db    # back to 200 UP within a few seconds
-docker compose down -v     # stop everything and remove the volume
+docker compose down -v     # stop everything and delete the data; the next up starts fresh
 ```
 
 ## Testing
@@ -369,7 +373,7 @@ docker compose down -v     # stop everything and remove the volume
 ```bash
 ./mvnw test
 ```
-**64 tests**: unit tests (Mockito, or `MockRestServiceServer` for the HTTP gateway — no Spring
+**65 tests**: unit tests (Mockito, or `MockRestServiceServer` for the HTTP gateway — no Spring
 context, no database) covering booking, cancellation, slot management, and notification
 retry/backoff; integration tests (`@SpringBootTest`, real local Postgres) covering the full
 booking-concurrency race, the health endpoint over real HTTP, and
@@ -382,9 +386,15 @@ reminder agent's AI text, template fallback, per-run cap, and resend queue
 (`ReminderAgentTest`), splitting the knowledge file (`PolicySearchServiceTest`), the reminder
 query on real Postgres (`AppointmentReminderQueryTest`), and `AssistantBookingGuardTest`: two
 students confirm the same slot through the agent's tool at the same moment, and exactly one of
-them gets it. The whole suite passes run after run with a fresh database each time.
-(`src/test/resources/config/application.properties` stops the reminder job from running on its
-own during tests.)
+them gets it.
+
+Tests use their own schema, `tutorslot_test`, inside the same database. Flyway creates it on
+first use, and `TestDatabaseConfig` wipes and rebuilds it from the app's migration files before
+each test context, so every run starts fresh. The app's data is never touched, and the app and
+the tests can run at the same time. `RestartKeepsDataTest` checks the restart fix: running the
+migrations again, exactly as a restart does, changes no rows. (The same test-only
+`src/test/resources/config/application.properties` also stops the reminder job from running on
+its own during tests.)
 
 CI (`.github/workflows/ci.yml`) runs the same `./mvnw -B verify` against a real `postgres:16`
 service container on every push, then confirms the Docker image still builds.
@@ -436,8 +446,9 @@ TutorSlot/
 │   │   │                                      #   MockNotificationController, InMemoryNotificationStore,
 │   │   │                                      #   NotificationModeHolder (UP/DOWN/SLOW)
 │   │   └── resources/
-│   │       ├── schema.sql                      # all 6 tables + constraints, rerunnable
-│   │       ├── seed.sql                        # sample tutors, students, subjects, slots, bookings
+│   │       ├── db/migration/                   # Flyway, each file runs once:
+│   │       │                                   #   V1__create_schema.sql (6 tables + constraints),
+│   │       │                                   #   V2__seed_data.sql (sample tutors, students, slots)
 │   │       ├── application.properties
 │   │       ├── knowledge/tutorslot-policies.md # the RAG knowledge file
 │   │       └── templates/
@@ -448,12 +459,14 @@ TutorSlot/
 │   │           ├── error/                      # 400, 403, 404, 409, 500
 │   │           └── fragments/                  # navbar.html (role-aware, sec:authorize)
 │   └── test/
-│       ├── resources/config/application.properties   # test-only overrides
+│       ├── resources/config/application.properties   # test-only overrides (own schema)
 │       └── java/com/tutorslot/
+│           ├── TestDatabaseConfig.java         # fresh test schema for each test context
 │           ├── ai/                             # AssistantToolsTest, AssistantServiceTest,
 │           │                                   #   ReminderAgentTest, PolicySearchServiceTest,
 │           │                                   #   AssistantBookingGuardTest (two confirms, one slot)
-│           ├── repository/RepositorySmokeTest.java, AppointmentReminderQueryTest.java
+│           ├── repository/RepositorySmokeTest.java, AppointmentReminderQueryTest.java,
+│           │                                   #   RestartKeepsDataTest (a restart keeps every row)
 │           ├── dto/CreateSlotRequestTest.java      # Bean Validation on the slot-creation form
 │           ├── web/HealthEndpointTest.java         # GET /health over real HTTP, through Spring Security
 │           ├── notification/
@@ -473,10 +486,14 @@ TutorSlot/
 
 ## Known limitations
 
-- `schema.sql` resets the database on every app restart, so the notification queue survives an
-  *outage of the notification service* but not a restart of the app itself. A production version
-  would stop resetting the schema.
-- The assistant's chat memory, its pending proposals, and the vector store are kept in memory too,
+- The assistant's chat memory, its pending proposals, and the vector store are kept in memory,
   so a restart clears conversations and re-embeds the knowledge file (8 small embedding calls).
+  Bookings and the notification queue are in PostgreSQL and survive restarts.
+- The sample slots are dated from the day the database was first created, so after about a week
+  they are all in the past. Tutors can add new ones, or `docker compose down -v` starts fresh.
+- A database created by an older copy of this app (before Flyway) has tables Flyway didn't make,
+  and the app stops at startup instead of touching them: "Found non-empty schema(s) "public" but
+  no schema history table". Empty it once: `docker compose down -v` for Docker, or drop the six
+  tables in a local `tutorslot_db`.
 - The free Gemini tier is sometimes slow. A call that takes longer than 20 seconds shows "try
   again" on the chat page, and a reminder falls back to the template.

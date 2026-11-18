@@ -1,6 +1,7 @@
--- TutorSlot sample data (Milestone 1 + Milestone 2)
--- Loaded after schema.sql. Slot times are relative to CURRENT_DATE so they are always in the
--- future (or, for the one past slot below, always in the past), no matter when this script runs.
+-- TutorSlot sample data, migration 2.
+-- Flyway runs this once, right after V1, when the database is first created. Slot times are
+-- relative to CURRENT_DATE on that day, so they start out in the future (or, for the one past
+-- slot below, in the past). They age like real data from then on.
 
 -- 3 tutors (PROVIDER users) + 3 students (CUSTOMER users).
 -- Every demo account shares the password "password123" (BCryptPasswordEncoder, strength 10).

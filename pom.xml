@@ -70,6 +70,16 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Flyway applies the files in db/migration once each, so a restart keeps the data.
+             Spring Boot picks the version; the second module adds PostgreSQL support. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
 
         <!-- Milestone 4: Gemini chat (the assistant and reminders), Gemini embeddings, and the
              in-memory SimpleVectorStore for the policy knowledge file (RAG). -->

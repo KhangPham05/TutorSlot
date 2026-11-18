@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.atomic.AtomicReference;
 
 // The mock service's current mode, changeable at runtime through the admin endpoint -- no
-// restart needed, which matters because a restart resets the database.
+// restart needed, so an outage can be demoed in the middle of a running session.
 @Component
 public class NotificationModeHolder {
 
