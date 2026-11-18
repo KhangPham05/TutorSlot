@@ -1,0 +1,355 @@
+:root {
+  --ink: #1d2433;
+  --muted: #667085;
+  --line: #e4e7ec;
+  --surface: #ffffff;
+  --page: #f7f8fa;
+  --brand: #2f5bd3;
+  --brand-dark: #2349ad;
+  --danger: #b42318;
+  --ok: #067647;
+  --notice-bg: #ecfdf3;
+  --error-bg: #fef3f2;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--page);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin: 8px 0 16px;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 28px 0 10px;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 14px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.navbar .brand {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--ink);
+}
+
+.navbar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  flex: 1;
+}
+
+.navbar .account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Buttons and form controls */
+button,
+.button {
+  display: inline-block;
+  padding: 9px 16px;
+  border: 1px solid var(--brand);
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover,
+.button:hover {
+  background: var(--brand-dark);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button.secondary,
+.button.secondary {
+  background: var(--surface);
+  color: var(--brand);
+}
+
+button.danger {
+  background: var(--surface);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+button.small,
+.button.small {
+  padding: 5px 12px;
+  font-size: 0.9rem;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--brand);
+}
+
+.link-button:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+input,
+select,
+textarea {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font: inherit;
+  color: inherit;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.narrow {
+  max-width: 480px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* Messages */
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.9rem;
+}
+
+.notice,
+.error {
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.notice {
+  background: var(--notice-bg);
+  color: var(--ok);
+}
+
+.error {
+  background: var(--error-bg);
+  color: var(--danger);
+}
+
+/* Tables scroll sideways on a phone instead of stretching the page. */
+table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+td.right {
+  text-align: right;
+  width: 100%;
+}
+
+.status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  background: var(--page);
+}
+
+.status.booked,
+.status.open {
+  color: var(--ok);
+  background: var(--notice-bg);
+}
+
+.status.cancelled {
+  color: var(--danger);
+  background: var(--error-bg);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* Cards and home page */
+.card {
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.card h3 {
+  margin: 0 0 6px;
+}
+
+.card p {
+  margin: 4px 0;
+}
+
+.hero {
+  padding: 32px 0 8px;
+}
+
+.hero h1 {
+  font-size: 2.3rem;
+}
+
+.hero p {
+  max-width: 600px;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 36px;
+}
+
+/* Assistant chat */
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 280px;
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.bubble.mine {
+  align-self: flex-end;
+  background: var(--brand);
+  color: #fff;
+}
+
+.bubble.theirs {
+  align-self: flex-start;
+  background: var(--page);
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border-color: var(--line);
+  background: var(--page);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.chip:hover {
+  background: var(--line);
+}
+
+.chat-input {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input textarea {
+  flex: 1;
+  resize: vertical;
+}
