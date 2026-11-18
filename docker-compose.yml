@@ -24,6 +24,10 @@ services:
       # The mock notification service runs inside this same container (same app, same JVM), so
       # localhost is correct here, not "app".
       NOTIFICATION_BASE_URL: http://localhost:8080/mock-notify
+      # Compose reads GEMINI_API_KEY from the .env file next to this one (never committed). With
+      # no key, the placeholder keeps the app starting with AI turned off; an empty value would
+      # stop Spring AI from starting at all.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-not-configured}
     depends_on:
       db:
         condition: service_healthy
