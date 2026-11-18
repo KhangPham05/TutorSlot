@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -105,6 +106,30 @@ public class AppointmentRepository {
                     WHERE s.slot_id = a.slot_id AND s.start_time > NOW()
                   )
                 """, params);
+    }
+
+    // For ReminderAgent: BOOKED appointments not reminded yet whose slot starts between from and
+    // to, earliest first, at most limit of them. Joins availability_slots, as cancel() does.
+    public List<Appointment> findBookedNeedingReminder(LocalDateTime from, LocalDateTime to, int limit) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("from", from)
+                .addValue("to", to)
+                .addValue("limit", limit);
+        return jdbcTemplate.query("""
+                SELECT a.appointment_id, a.slot_id, a.customer_id, a.status, a.notes, a.created_at, a.cancelled_at
+                FROM appointments a
+                JOIN availability_slots s ON s.slot_id = a.slot_id
+                WHERE a.status = 'BOOKED'
+                  AND a.reminder_sent_at IS NULL
+                  AND s.start_time BETWEEN :from AND :to
+                ORDER BY s.start_time
+                LIMIT :limit
+                """, params, APPOINTMENT_ROW_MAPPER);
+    }
+
+    public void markReminderSent(Long appointmentId) {
+        jdbcTemplate.update("UPDATE appointments SET reminder_sent_at = NOW() WHERE appointment_id = :appointmentId",
+                new MapSqlParameterSource("appointmentId", appointmentId));
     }
 
     // Run before any appointments listing (customer or provider): a BOOKED appointment whose

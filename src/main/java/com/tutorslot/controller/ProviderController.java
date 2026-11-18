@@ -1,5 +1,6 @@
 package com.tutorslot.controller;
 
+import com.tutorslot.ai.ReminderAgent;
 import com.tutorslot.dto.CreateSlotRequest;
 import com.tutorslot.model.Provider;
 import com.tutorslot.service.AppointmentService;
@@ -26,12 +27,15 @@ public class ProviderController {
     private final ProviderDashboardService providerDashboardService;
     private final AppointmentService appointmentService;
     private final CurrentUserService currentUserService;
+    private final ReminderAgent reminderAgent;
 
     public ProviderController(ProviderDashboardService providerDashboardService,
-                               AppointmentService appointmentService, CurrentUserService currentUserService) {
+                               AppointmentService appointmentService, CurrentUserService currentUserService,
+                               ReminderAgent reminderAgent) {
         this.providerDashboardService = providerDashboardService;
         this.appointmentService = appointmentService;
         this.currentUserService = currentUserService;
+        this.reminderAgent = reminderAgent;
     }
 
     @GetMapping("/dashboard")
@@ -66,6 +70,15 @@ public class ProviderController {
         Provider provider = currentUserService.requireProviderByEmail(authentication.getName());
         providerDashboardService.removeSlot(slotId, provider.providerId());
         redirectAttributes.addFlashAttribute("message", "Slot removed.");
+        return "redirect:/provider/dashboard";
+    }
+
+    // Manual trigger for the reminder job (handy for a demo instead of waiting 15 minutes): the
+    // same method the schedule calls.
+    @PostMapping("/reminders/run")
+    public String runReminders(RedirectAttributes redirectAttributes) {
+        int count = reminderAgent.sendDueReminders();
+        redirectAttributes.addFlashAttribute("message", count == 1 ? "1 reminder sent." : count + " reminders sent.");
         return "redirect:/provider/dashboard";
     }
 

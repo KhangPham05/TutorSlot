@@ -24,6 +24,11 @@
 
 <p class="message" th:if="${message}" th:text="${message}"></p>
 
+<form th:action="@{/provider/reminders/run}" method="post">
+    <button type="submit">Send reminders now</button>
+    <small>Emails a reminder for each session in the next 24 hours. Also runs every 15 minutes.</small>
+</form>
+
 <h2>My Slots</h2>
 <table border="1" cellpadding="6">
     <thead>

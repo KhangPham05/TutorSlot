@@ -1,6 +1,5 @@
 package com.tutorslot.ai;
 
-import com.google.genai.errors.ApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -8,13 +7,10 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
-import java.io.InterruptedIOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
 // One chat turn with Gemini: the system prompt, the tools, the tool context, and the chat memory.
 // It never throws to the controller -- every failure becomes a short message for the page.
@@ -86,36 +82,14 @@ public class AssistantService {
                     .advisors(advisor -> advisor.param(ChatMemory.CONVERSATION_ID, conversationId(customerId)))
                     .call()
                     .chatResponse();
-            // Gemini can send one answer in several pieces, and Spring AI turns each piece into a
-            // separate result. content() would return only the first piece (a cut-off sentence),
-            // so join them all.
-            String reply = response == null ? null : response.getResults().stream()
-                    .map(generation -> generation.getOutput().getText())
-                    .filter(StringUtils::hasText)
-                    .collect(Collectors.joining());
-            return StringUtils.hasText(reply) ? reply : TRY_AGAIN;
+            String reply = GeminiText.of(response);
+            return reply != null ? reply : TRY_AGAIN;
         } catch (RuntimeException e) {
             // Network, timeout, or quota trouble. Log the error type only: never the student's
             // message, and the page gets a friendly sentence instead of a stack trace.
-            log.warn("Assistant call failed: user={} turn={} error={}", customerId, turn, describe(e));
+            log.warn("Assistant call failed: user={} turn={} error={}", customerId, turn, GeminiText.describeError(e));
             return TRY_AGAIN;
         }
-    }
-
-    // "Gemini 429 RESOURCE_EXHAUSTED" (quota) or "Gemini 503 UNAVAILABLE" (overloaded) when Google
-    // answered with an error, "timeout" when it didn't answer in time, else the root cause's type.
-    private static String describe(RuntimeException e) {
-        Throwable root = e;
-        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
-            if (cause instanceof ApiException apiError) {
-                return ("Gemini " + apiError.code() + " " + apiError.status()).trim();
-            }
-            if (cause instanceof InterruptedIOException) {
-                return "timeout";
-            }
-            root = cause;
-        }
-        return root.getClass().getSimpleName();
     }
 
     private String systemPrompt(Long customerId, long turn) {

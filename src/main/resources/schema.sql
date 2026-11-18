@@ -70,6 +70,8 @@ CREATE TABLE appointments (
     notes           TEXT,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     cancelled_at    TIMESTAMP NULL,
+    -- Milestone 4: set once ReminderAgent has handled this appointment, so it's never reminded twice.
+    reminder_sent_at TIMESTAMP NULL,
     CONSTRAINT fk_appointments_slot FOREIGN KEY (slot_id) REFERENCES availability_slots (slot_id),
     CONSTRAINT fk_appointments_customer FOREIGN KEY (customer_id) REFERENCES users (user_id),
     CONSTRAINT ck_appointments_status CHECK (status IN ('BOOKED', 'CANCELLED', 'COMPLETED')),
