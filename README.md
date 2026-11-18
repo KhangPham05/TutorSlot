@@ -6,6 +6,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED)
 ![Spring AI](https://img.shields.io/badge/Spring%20AI-1.1.8-6DB33F)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
 TutorSlot is a tutoring appointment booking app with a built-in **AI booking agent**. Students
 can browse tutors' open time slots and book on the web, or just tell the assistant what they
@@ -23,11 +24,12 @@ What it does:
   answered from TutorSlot's own policy document (RAG), never made up.
 - **Automatic reminders.** A scheduled agent writes a friendly reminder for every session in the
   next 24 hours and emails it to the student.
-- **Booking on the web too.** Browse, filter, book, and cancel slots; tutors manage their slots
-  from a dashboard.
+- **A Next.js web app.** Browse, filter, book, and cancel slots, and chat with the assistant;
+  tutors manage their slots from a dashboard. It talks to the Spring Boot backend through a JSON
+  API secured with JWT.
 
 Under the hood it's built to behave like a real service: **race-free booking** (two students can
-never win the same slot, whether they use the web page or the agent), a **real network boundary**
+never win the same slot, whether they use the web app or the agent), a **real network boundary**
 to a notification service that can be killed and slowed down on command, and the **ops basics**:
 logs, health, metrics, Docker, and CI. The AI runs on Spring AI and the free Gemini API, and it's
 optional: without an API key the app still runs, the chat assistant is simply switched off, and
@@ -44,7 +46,15 @@ default — override with the `DB_USERNAME`/`DB_PASSWORD` env vars). No Postgres
 ```
 On the first start, Flyway creates the tables and loads sample data. After that your data is
 kept across restarts. Nothing to configure first.
-Visit **http://localhost:8080** and log in with a seeded account:
+
+Then start the Next.js app in a second terminal (needs Node 20.9 or newer):
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Visit **http://localhost:3000** and log in with a seeded account. (The original server-rendered
+pages still work too, at http://localhost:8080.)
 
 | Role | Email | Password |
 |---|---|---|
@@ -68,19 +78,20 @@ Prefer containers?
 ```bash
 docker compose up --build
 ```
-Two services, `db` + `app` — see [Docker](#docker) below for the stop/start failure demo.
+Three services, `db`, `app`, and the Next.js `web` app on http://localhost:3000. See
+[Docker](#docker) below for the stop/start failure demo.
 
 ## At a glance
 
 | | |
 |---|---|
-| **Stack** | Java 21 · Spring Boot 3.5.3 · PostgreSQL · plain SQL via `JdbcTemplate` (no ORM) · Flyway migrations |
-| **Auth** | Spring Security, session-based, two roles (`CUSTOMER` / `PROVIDER`), CSRF on |
+| **Stack** | Java 21 · Spring Boot 3.5.3 · PostgreSQL · plain SQL via `JdbcTemplate` (no ORM) · Flyway migrations · Next.js 16 (React 19, TypeScript) |
+| **Auth** | Spring Security, two roles (`CUSTOMER` / `PROVIDER`): JWT for the JSON API, session login with CSRF for the server-rendered pages |
 | **Concurrency** | Pessimistic row locks + a partial unique index as the real backstop — see below |
 | **Integration** | A real HTTP boundary to a mock notification service — timeouts, retry, idempotent fallback |
 | **Ops** | `/health`, Micrometer metrics, structured logs, Docker, GitHub Actions CI |
 | **AI** | Spring AI 1.1.8 · Gemini free tier · tool calling, chat memory, a scheduled agent, RAG over a knowledge file |
-| **Tests** | 65 tests — unit (Mockito) + integration (`@SpringBootTest`, real Postgres) — 3 clean runs in a row, none calls Gemini |
+| **Tests** | 79 tests — unit (Mockito) + integration (`@SpringBootTest`, real Postgres, real JWTs) — none calls Gemini; CI also builds the Next.js app |
 
 ## How the AI works
 
@@ -187,6 +198,66 @@ configured.", reminders use a plain template, and the knowledge file isn't embed
   reminder (`Reminder sent: appointment=12 source=ai`). Never the student's messages, their
   notes, the reminder text, or the API key.
 
+## The Next.js app and the JWT API
+
+The web app in `frontend/` is a Next.js 16 app (React 19, TypeScript). It holds no business
+rules: every page calls the Spring Boot backend's JSON API, and the backend stays the only place
+that decides who can book, cancel, or see what.
+
+How a request travels:
+
+1. **Log in.** The login page posts the email and password to `POST /api/auth/login`. The backend
+   checks them exactly like the web form does (same users table, same BCrypt check) and returns a
+   signed JWT that is valid for 2 hours. The token holds only the user's email, their role, and
+   its times. Anyone holding a token can read it, so nothing private goes in.
+2. **Keep the token.** The app saves it in the tab's `sessionStorage`: a refresh keeps you logged
+   in, and closing the tab logs you out.
+3. **Call the API.** Every request sends `Authorization: Bearer <token>`. The browser only talks
+   to the Next.js server, which passes `/api/...` on to Spring (`next.config.ts`), so there is one
+   address and no CORS setup.
+4. **Check the token.** On the backend, `ApiSecurityConfig` is a second security chain just for
+   `/api/**`. It checks the signature, the expiry, and the issuer, turns the token's role into
+   `ROLE_CUSTOMER` or `ROLE_PROVIDER`, and applies the same role rules as the web pages. The user
+   always comes from the token, never from the request body.
+
+Security choices worth knowing:
+
+- **Stateless.** The API chain never creates or reads a session, so a browser's web login cookie
+  does nothing there (`ApiAuthTest` proves it). That's why CSRF protection, which guards against
+  forged requests that ride on cookies, can be off for `/api/**` alone. The server-rendered pages
+  keep their session login and CSRF exactly as before.
+- **One secret.** Tokens are signed with HS256 using `JWT_SECRET` (at least 32 characters, from
+  the environment only). With none set, the app makes a random key at startup, so nothing secret
+  is ever in the repo; logins then just end when the backend restarts.
+- **One answer for a wrong password or an unknown email** (401 "Wrong email or password."), so
+  nobody can probe which accounts exist.
+- **Short JSON errors.** `ApiExceptionHandler` maps the same exceptions as the web pages to the
+  same status codes, with a small `{"error": "..."}` body. No stack trace or internal message
+  reaches the browser.
+
+| Method | URL | Who | Purpose |
+|---|---|---|---|
+| POST | `/api/auth/login` | public | Email and password in, JWT out |
+| GET | `/api/me` | logged in | Who the token belongs to |
+| GET | `/api/slots` | public | Open slots with filters, paging, and the dropdown options |
+| GET | `/api/slots/{id}` | public | One slot |
+| POST | `/api/customer/bookings` | CUSTOMER | Book (409 if the slot was just taken) |
+| GET | `/api/customer/appointments` | CUSTOMER | Upcoming and history |
+| GET | `/api/customer/appointments/{id}` | CUSTOMER, owner | Booking confirmation |
+| POST | `/api/customer/appointments/{id}/cancel` | CUSTOMER, owner | Cancel |
+| GET, POST | `/api/customer/assistant` | CUSTOMER | Is the assistant on; send one message |
+| POST | `/api/customer/assistant/reset` | CUSTOMER | New conversation |
+| GET | `/api/provider/dashboard` | PROVIDER | My slots and subjects |
+| POST | `/api/provider/slots` | PROVIDER | Add a slot |
+| POST | `/api/provider/slots/{id}/delete` | PROVIDER, owner | Remove a slot (only if never booked) |
+| GET | `/api/provider/appointments` | PROVIDER | Sessions booked with me |
+| POST | `/api/provider/reminders/run` | PROVIDER | Send due reminders now |
+
+Every endpoint calls the same service method as the matching server-rendered page, so a booking
+from the Next.js app, the old page, or the AI assistant goes through the same `BookingFacade`,
+row lock, and unique index. The assistant's confirm-before-booking turn counter is shared too
+(`AssistantTurns`).
+
 ## Architecture
 
 ![Controller to Service to Repository to PostgreSQL](docs/architecture-diagram.svg)
@@ -289,6 +360,9 @@ the reminder agent has handled an appointment.
 
 ## Pages and endpoints
 
+The server-rendered pages (Thymeleaf, session login). The JSON API the Next.js app uses is listed
+in [The Next.js app and the JWT API](#the-nextjs-app-and-the-jwt-api).
+
 | Method | URL | Who | Purpose |
 |---|---|---|---|
 | GET | `/` | public | Home — tutors and the subjects they teach |
@@ -353,13 +427,20 @@ restarting it can't fix.
 ```bash
 docker compose up --build
 ```
-`db` (`postgres:16`, named volume, not published on the host — 5432 is likely already your own
-local Postgres) and `app` (built from the `Dockerfile`, `8080:8080`). The mock notification
-service runs inside the same `app` container, so its base URL stays `localhost:8080`, not
-another service name. Compose passes `GEMINI_API_KEY` from the `.env` file next to
-`docker-compose.yml`; with no `.env`, the app starts with the AI features turned off. The app
-container runs on Pacific time (`TZ`), the same clock tutors use for slot times; on the default
-UTC, the evening's slots would count as already past.
+Three services:
+- `db`: `postgres:16` with a named volume, not published on the host (5432 is likely already
+  your own local Postgres).
+- `app`: the Spring Boot backend, built from the `Dockerfile`, on `8080:8080`. The mock
+  notification service runs inside the same container, so its base URL stays `localhost:8080`.
+- `web`: the Next.js app, built from `frontend/Dockerfile`, on `3000:3000`. Open
+  **http://localhost:3000**. It passes `/api` calls on to `app` over the compose network, and the
+  image holds only Next.js's small standalone server, running as a non-root user.
+
+Compose passes `GEMINI_API_KEY` and, optionally, `JWT_SECRET` from the `.env` file next to
+`docker-compose.yml`. With no key, the app starts with the AI features turned off; with no
+`JWT_SECRET`, logins end whenever the `app` container restarts. The app container runs on
+Pacific time (`TZ`), the same clock tutors use for slot times; on the default UTC, the evening's
+slots would count as already past.
 
 The database lives in the named volume, so bookings survive `docker compose restart app` and a
 full `docker compose down` and `up`. Only `down -v` deletes it.
@@ -375,7 +456,7 @@ docker compose down -v     # stop everything and delete the data; the next up st
 ```bash
 ./mvnw test
 ```
-**65 tests**: unit tests (Mockito, or `MockRestServiceServer` for the HTTP gateway — no Spring
+**79 tests**: unit tests (Mockito, or `MockRestServiceServer` for the HTTP gateway — no Spring
 context, no database) covering booking, cancellation, slot management, and notification
 retry/backoff; integration tests (`@SpringBootTest`, real local Postgres) covering the full
 booking-concurrency race, the health endpoint over real HTTP, and
@@ -390,6 +471,12 @@ query on real Postgres (`AppointmentReminderQueryTest`), and `AssistantBookingGu
 students confirm the same slot through the agent's tool at the same moment, and exactly one of
 them gets it.
 
+The JSON API tests (`ApiAuthTest`, `CustomerApiTest`, `ProviderApiTest`) log in through the real
+`/api/auth/login` and use the real tokens against the real services and Postgres. They cover a
+good and a bad login, a forged and an expired token, a web session that must not open the API,
+booking, a slot taken a moment earlier (409), cancelling, one student or tutor touching
+another's data (403), the wrong role (403), and adding and removing slots.
+
 Tests use their own schema, `tutorslot_test`, inside the same database. Flyway creates it on
 first use, and `TestDatabaseConfig` wipes and rebuilds it from the app's migration files before
 each test context, so every run starts fresh. The app's data is never touched, and the app and
@@ -399,7 +486,8 @@ migrations again, exactly as a restart does, changes no rows. (The same test-onl
 its own during tests.)
 
 CI (`.github/workflows/ci.yml`) runs the same `./mvnw -B verify` against a real `postgres:16`
-service container on every push, then confirms the Docker image still builds.
+service container on every push, builds the Next.js app (`npm ci` and `npm run build`, which
+also type-checks it), then confirms both Docker images still build.
 
 ```bash
 ./mvnw clean package   # build a jar
@@ -415,8 +503,8 @@ TutorSlot/
 ├── pom.xml
 ├── mvnw, mvnw.cmd                     # Maven wrapper — build/run without a local Maven install
 ├── Dockerfile, .dockerignore          # multi-stage build; see "Docker" above
-├── docker-compose.yml                 # app + db services
-├── .github/workflows/ci.yml           # tests + a docker build check, on every push
+├── docker-compose.yml                 # db, app, and web services
+├── .github/workflows/ci.yml           # tests, a Next.js build, and docker build checks, on every push
 ├── docs/er-diagram.svg                # ER diagram used in this README
 ├── src/
 │   ├── main/
@@ -425,7 +513,12 @@ TutorSlot/
 │   │   │   ├── controller/                    # HomeController, SlotController, LoginController,
 │   │   │   │                                  #   BookingController, AppointmentController,
 │   │   │   │                                  #   ProviderController
-│   │   │   ├── security/                      # SecurityConfig, AppUserDetailsService, UserPrincipal
+│   │   │   ├── controller/api/                # the JSON API for the Next.js app -- AuthApiController,
+│   │   │   │                                  #   SlotApiController, CustomerApiController,
+│   │   │   │                                  #   AssistantApiController, ProviderApiController
+│   │   │   ├── security/                      # SecurityConfig (web pages), ApiSecurityConfig (/api, JWT),
+│   │   │   │                                  #   JwtConfig, TokenService, AppUserDetailsService,
+│   │   │   │                                  #   UserPrincipal
 │   │   │   ├── service/                       # ProviderService, AvailabilitySlotService,
 │   │   │   │                                  #   BookingService, BookingFacade, AppointmentService,
 │   │   │   │                                  #   ProviderDashboardService, CurrentUserService
@@ -436,10 +529,11 @@ TutorSlot/
 │   │   │   │                                  #   PendingNotification
 │   │   │   ├── dto/                           # view-facing DTOs (one per page/concern)
 │   │   │   ├── exception/                     # NotFoundException, ForbiddenException, SlotConflictException
-│   │   │   ├── web/                           # GlobalExceptionHandler (@ControllerAdvice)
+│   │   │   ├── web/                           # GlobalExceptionHandler (pages), ApiExceptionHandler (JSON)
 │   │   │   ├── ai/                            # the AI agents -- AssistantTools, AssistantService,
 │   │   │   │                                  #   PendingActionStore, PolicySearchService,
-│   │   │   │                                  #   ReminderAgent, AiAvailability, AiConfig, GeminiText
+│   │   │   │                                  #   ReminderAgent, AssistantTurns, AiAvailability, AiConfig,
+│   │   │   │                                  #   GeminiText
 │   │   │   ├── notification/                  # the client side of the distribution boundary --
 │   │   │   │                                  #   NotificationGateway, HttpNotificationGateway,
 │   │   │   │                                  #   AppointmentNotificationListener, NotificationResendJob,
@@ -464,6 +558,9 @@ TutorSlot/
 │       ├── resources/config/application.properties   # test-only overrides (own schema)
 │       └── java/com/tutorslot/
 │           ├── TestDatabaseConfig.java         # fresh test schema for each test context
+│           ├── security/ApiAuthTest.java       # JWT login, forged/expired tokens, no session on /api
+│           ├── controller/api/                 # CustomerApiTest, ProviderApiTest (real tokens),
+│           │                                   #   ApiLogin (logs a seeded user in for a token)
 │           ├── ai/                             # AssistantToolsTest, AssistantServiceTest,
 │           │                                   #   ReminderAgentTest, PolicySearchServiceTest,
 │           │                                   #   AssistantBookingGuardTest (two confirms, one slot)
@@ -482,6 +579,16 @@ TutorSlot/
 │               ├── ProviderDashboardServiceTest.java
 │               ├── BookingConcurrencyTest.java     # two bookings racing for one slot
 │               └── BookingWithNotificationDownTest.java   # booking with notifications down or slow
+└── frontend/                          # the Next.js app (React 19, TypeScript)
+    ├── package.json, package-lock.json  # pinned versions; npm ci installs exactly these
+    ├── next.config.ts                 # passes /api/... on to the Spring Boot backend
+    ├── Dockerfile                     # build, then a small standalone server image
+    ├── app/                           # one folder per page: login, slots, book/[slotId],
+    │                                  #   appointments, appointments/[id], assistant,
+    │                                  #   tutor, tutor/appointments
+    ├── components/                    # Navbar, RequireRole, AppointmentTable
+    └── lib/                           # api.ts (token + errors), auth.tsx (login state),
+                                       #   useApi.ts, format.ts, types.ts
 ```
 
 </details>
@@ -499,3 +606,8 @@ TutorSlot/
   tables in a local `tutorslot_db`.
 - The free Gemini tier is sometimes slow. A call that takes longer than 20 seconds shows "try
   again" on the chat page, and a reminder falls back to the template.
+- The Next.js app keeps its token in `sessionStorage`, where the page's own scripts can read it.
+  React escapes everything it shows, which guards against injected scripts, but an `httpOnly`
+  cookie would be stronger. There is no refresh token either: after 2 hours, you log in again.
+- The server-rendered Thymeleaf pages still run alongside the Next.js app on port 8080. Both use
+  the same services and data, so either one can be used.

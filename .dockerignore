@@ -4,6 +4,8 @@ target/
 *.iml
 .vscode/
 .DS_Store
+# The Next.js app has its own image (frontend/Dockerfile); its node_modules would only slow this build.
+frontend/
 
 # Local secrets (GEMINI_API_KEY) must never be baked into the image.
 .env
