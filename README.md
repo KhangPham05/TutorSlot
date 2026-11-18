@@ -35,6 +35,18 @@ logs, health, metrics, Docker, and CI. The AI runs on Spring AI and the free Gem
 optional: without an API key the app still runs, the chat assistant is simply switched off, and
 reminders go out as a plain template.
 
+## Project milestones
+
+Built in four milestones. Each report covers the design, the decisions, and the tests, and links
+its demo video.
+
+| Milestone | What it added | Report and demo |
+|---|---|---|
+| 1. Foundation | The database schema and sample data, and a layered Spring Boot skeleton with read-only home and slot pages | [Milestone 1 report](https://docs.google.com/document/d/1FdjVf5WMDM2bnruZAH_9yNpSmPfSSHt1-L0h2ZfMJ6g/edit?usp=sharing) |
+| 2. Booking | Login with two roles, slot search and paging, booking that can never double-book (row lock and a partial unique index), cancelling, and the tutor dashboard | [Milestone 2 report](https://docs.google.com/document/d/1RKEh6nZdu90lBLhoBK8O4jnNGlggVO6vAogd28SX_oE/edit?usp=sharing) |
+| 3. Production ready | Notifications over a real HTTP boundary with timeouts, retries, and a resend queue; logs, health, metrics, Docker, and CI | [Milestone 3 report](https://docs.google.com/document/d/17nUPhu_X9yTa5wd1nMJoan8L1GbxzRSx_Mi69JnB8sU/edit?usp=sharing) |
+| 4. Enterprise AI | A chat agent that books and cancels through tools and always asks first, a reminder agent, and policy answers grounded in a knowledge file (Spring AI and Gemini); a Next.js frontend on a JWT API; Flyway migrations so data survives restarts | [Milestone 4 report](https://docs.google.com/document/d/1qObcvqv-g0Xt5QK4d6aJ66JIsH1XzSaBrs1Bxqyn9m0/edit?usp=sharing) |
+
 ## Quick start
 
 Needs Java 21 and a local PostgreSQL with a `tutorslot_db` database (`postgres`/`postgres` by
