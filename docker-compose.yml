@@ -28,6 +28,11 @@ services:
       # no key, the placeholder keeps the app starting with AI turned off; an empty value would
       # stop Spring AI from starting at all.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-not-configured}
+      # Containers default to UTC. Slot times are local (no time zone), so the app must run on the
+      # tutors' clock, or in the evening it thinks it's already tomorrow and calls tonight's slots
+      # past. Java uses its own time zone data, and the JDBC driver passes the zone to Postgres, so
+      # NOW() and CURRENT_DATE in SQL follow it too.
+      TZ: America/Los_Angeles
     depends_on:
       db:
         condition: service_healthy

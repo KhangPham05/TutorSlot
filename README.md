@@ -357,7 +357,9 @@ docker compose up --build
 local Postgres) and `app` (built from the `Dockerfile`, `8080:8080`). The mock notification
 service runs inside the same `app` container, so its base URL stays `localhost:8080`, not
 another service name. Compose passes `GEMINI_API_KEY` from the `.env` file next to
-`docker-compose.yml`; with no `.env`, the app starts with the AI features turned off.
+`docker-compose.yml`; with no `.env`, the app starts with the AI features turned off. The app
+container runs on Pacific time (`TZ`), the same clock tutors use for slot times; on the default
+UTC, the evening's slots would count as already past.
 
 The database lives in the named volume, so bookings survive `docker compose restart app` and a
 full `docker compose down` and `up`. Only `down -v` deletes it.
